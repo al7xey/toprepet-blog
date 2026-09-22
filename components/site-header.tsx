@@ -1,15 +1,25 @@
 import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
 import { MAIN_URL } from '@/lib/config'
 
+function Logo() {
+  return <Link href="/" className="brand" aria-label="TopRepet — блог">
+    <svg className="brand-symbol" viewBox="0 0 36 36" fill="none" aria-hidden="true">
+      <rect width="36" height="36" rx="12" fill="currentColor"/>
+      <path d="M17 9v14a4 4 0 0 0 4 4h3M11 15h13" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+    <span>toprepet</span>
+  </Link>
+}
+
 export function SiteHeader() {
-  return <header className="sticky top-0 z-30 border-b border-[#eee5de] bg-[#fbf8f4]/95 backdrop-blur-md">
-    <div className="page-shell flex min-h-18 items-center justify-between gap-3 py-3">
-      <Link href="/" className="flex items-center gap-2.5 text-[1.13rem] font-extrabold tracking-[-.045em]"><span className="flex size-9 items-center justify-center rounded-[11px] bg-[#f26a2e] text-[1.5rem] leading-none text-white">t</span>toprepet<span className="ml-1 hidden border-l border-[#d8d0c9] pl-3 text-sm font-semibold tracking-normal text-[#79818b] sm:inline">блог</span></Link>
-      <nav aria-label="Основная навигация" className="flex items-center gap-5 text-[.82rem] font-bold sm:gap-8">
-        <Link href="/" className="hover:text-[#d9551d]">Статьи</Link>
-        <a href={MAIN_URL} className="inline-flex items-center gap-1 hover:text-[#d9551d]">Найти репетитора <ArrowUpRight size={15}/></a>
+  return <header className="site-header">
+    <div className="page-shell header-inner">
+      <Logo/>
+      <nav aria-label="Основная навигация" className="header-nav">
+        <Link href="/">Главная</Link>
+        <a href={MAIN_URL}>Занятия</a>
       </nav>
+      <a href={MAIN_URL} className="button-primary header-contact"><span className="header-contact-full">Найти репетитора</span><span className="header-contact-short">Занятия</span></a>
     </div>
   </header>
 }
