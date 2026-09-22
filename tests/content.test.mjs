@@ -1,0 +1,42 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { renderContent, sanitizeHtml, headingsFromHtml } from '../lib/content.ts'
+import { categoryPath, resolveCategory, relatedArticles } from '../lib/data.ts'
+
+test('article HTML has stable H2/H3 anchors and safe text', () => {
+  const { html, headings } = renderContent({ type: 'doc', content: [
+    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Тема & практика' }] },
+    { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Типичные ошибки' }] },
+    { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Тема & практика' }] },
+    { type: 'paragraph', content: [{ type: 'text', text: '<script>alert(1)</script>' }] },
+  ] })
+  assert.equal(headings.length, 3)
+  assert.equal(headings[2].id, `${headings[0].id}-2`)
+  assert.deepEqual(headingsFromHtml(html), headings)
+  assert.ok(html.includes('&lt;script&gt;'))
+  assert.ok(!html.includes('<script>'))
+})
+
+test('raw scripts and unsafe links never survive', () => {
+  assert.ok(!sanitizeHtml('<script>alert(1)</script><p onclick="x()">Text</p>').includes('<script'))
+  const { html } = renderContent({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'link', marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }] }] }] })
+  assert.ok(!html.includes('href='))
+})
+
+test('nested rubric resolves only along the complete parent path', () => {
+  const all = [
+    { id: 'a', slug: 'ege', parent_id: null },
+    { id: 'b', slug: 'informatika', parent_id: 'a' },
+    { id: 'c', slug: 'zadanie-12', parent_id: 'b' },
+  ]
+  assert.equal(resolveCategory(['ege', 'informatika', 'zadanie-12'], all)?.id, 'c')
+  assert.equal(resolveCategory(['informatika', 'zadanie-12'], all), null)
+  assert.deepEqual(categoryPath(all[2], all).map(item => item.slug), ['ege', 'informatika', 'zadanie-12'])
+})
+
+test('related articles prefer same topic then parent', () => {
+  const cats = [{ id: 'root', parent_id: null }, { id: 'topic', parent_id: 'root' }, { id: 'other', parent_id: null }]
+  const current = { id: 'current', category_id: 'topic' }
+  const all = [current, { id: 'other', category_id: 'other' }, { id: 'parent', category_id: 'root' }, { id: 'same', category_id: 'topic' }]
+  assert.deepEqual(relatedArticles(current, all, cats).map(article => article.id), ['same', 'parent', 'other'])
+})
