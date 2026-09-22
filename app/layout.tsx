@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru"><body><SiteHeader/>{children}<footer className="mt-24 border-t border-[#eee7de] px-5 py-10 text-sm text-[#6d7985]"><div className="mx-auto flex max-w-7xl flex-wrap justify-between gap-4"><span>© TopRepet · Блог об учёбе</span><a href="https://toprepet.ru/" className="hover:text-[#df5b27]">Подобрать репетитора ↗</a></div></footer><Metrika/></body></html>
+  return <html lang="ru"><body><SiteHeader/>{children}<footer className="mt-20 border-t border-[#eee5de] bg-white"><div className="page-shell flex flex-wrap items-center justify-between gap-4 py-9 text-sm text-[#697383]"><span>© TopRepet · Блог об учёбе</span><a href="https://toprepet.ru/" className="font-bold text-[#202838] hover:text-[#d9551d]">На основной сайт ↗</a></div></footer><Metrika/></body></html>
 }
