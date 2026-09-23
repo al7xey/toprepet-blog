@@ -4,6 +4,7 @@ import { transliterate } from 'transliteration'
 
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: { type: string; attrs?: Record<string, unknown> }[]; content?: Node[] }
 export type Heading = { id: string; level: 2 | 3; text: string }
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 
 const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 const safeUrl = (value: unknown) => { try { const url = new URL(String(value)); return ['http:', 'https:'].includes(url.protocol) ? url.href : '' } catch { return '' } }
@@ -66,7 +67,7 @@ export function renderContent(value: unknown): { html: string; headings: Heading
 
 export function sanitizeHtml(html: string) {
   const window = new JSDOM('').window
-  const clean = DOMPurify(window).sanitize(html, {
+  const clean = DOMPurify(window as unknown as Parameters<typeof DOMPurify>[0]).sanitize(html, {
     ALLOWED_TAGS: ['p','br','strong','em','s','a','h2','h3','ul','ol','li','blockquote','hr','figure','img','figcaption'],
     ALLOWED_ATTR: ['href','rel','id','src','alt','loading'],
   })
@@ -84,7 +85,8 @@ export function headingsFromHtml(html: string): Heading[] {
 export function imageMetadata(value: unknown) {
   const images: { id: string; alt: string; caption: string | null }[] = []
   const visit = (node: Node) => {
-    if (node.type === 'image' && /^[0-9a-f-]{36}$/i.test(String(node.attrs?.mediaId || ''))) images.push({ id: String(node.attrs?.mediaId), alt: String(node.attrs?.alt || '').trim(), caption: String(node.attrs?.caption || '').trim() || null })
+    const mediaId = String(node.attrs?.mediaId || '')
+    if (node.type === 'image' && isUuid(mediaId)) images.push({ id: mediaId, alt: String(node.attrs?.alt || '').trim(), caption: String(node.attrs?.caption || '').trim() || null })
     for (const child of node.content || []) visit(child)
   }
   visit(value as Node)

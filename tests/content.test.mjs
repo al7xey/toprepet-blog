@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { renderContent, sanitizeHtml, headingsFromHtml } from '../lib/content.ts'
-import { categoryPath, resolveCategory, relatedArticles } from '../lib/data.ts'
+import { categoryBranchIds, categoryPath, readingTimeMinutes, resolveCategory, relatedArticles } from '../lib/data.ts'
 
 test('article HTML has stable H2/H3 anchors and safe text', () => {
   const { html, headings } = renderContent({ type: 'doc', content: [
@@ -32,11 +32,18 @@ test('nested rubric resolves only along the complete parent path', () => {
   assert.equal(resolveCategory(['ege', 'informatika', 'zadanie-12'], all)?.id, 'c')
   assert.equal(resolveCategory(['informatika', 'zadanie-12'], all), null)
   assert.deepEqual(categoryPath(all[2], all).map(item => item.slug), ['ege', 'informatika', 'zadanie-12'])
+  assert.deepEqual([...categoryBranchIds('a', all)], ['a', 'b', 'c'])
 })
 
 test('related articles prefer same topic then parent', () => {
-  const cats = [{ id: 'root', parent_id: null }, { id: 'topic', parent_id: 'root' }, { id: 'other', parent_id: null }]
+  const cats = [{ id: 'root', parent_id: null }, { id: 'topic', parent_id: 'root' }, { id: 'sibling', parent_id: 'root' }, { id: 'other', parent_id: null }]
   const current = { id: 'current', category_id: 'topic' }
-  const all = [current, { id: 'other', category_id: 'other' }, { id: 'parent', category_id: 'root' }, { id: 'same', category_id: 'topic' }]
-  assert.deepEqual(relatedArticles(current, all, cats).map(article => article.id), ['same', 'parent', 'other'])
+  const all = [current, { id: 'other', category_id: 'other' }, { id: 'parent', category_id: 'root' }, { id: 'sibling', category_id: 'sibling' }, { id: 'same', category_id: 'topic' }]
+  assert.deepEqual(relatedArticles(current, all, cats).map(article => article.id), ['same', 'parent', 'sibling'])
+})
+
+test('reading time uses the Tiptap text and never returns zero', () => {
+  assert.equal(readingTimeMinutes({ type: 'doc', content: [] }), 1)
+  const words = Array.from({ length: 181 }, (_, index) => `слово${index}`).join(' ')
+  assert.equal(readingTimeMinutes({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: words }] }] }), 2)
 })

@@ -21,6 +21,8 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: { ini
   const imageSelected = editor.isActive('image')
   const image = imageSelected ? editor.getAttributes('image') : null
   const tool = (label: string, icon: React.ReactNode, action: () => void, active = false, disabled = false) => <button key={label} type="button" title={label} aria-label={label} data-active={active} disabled={disabled} onClick={action}>{icon}</button>
+  const toggleBoldItalic = () => { const chain = editor.chain().focus(); if (editor.isActive('bold') && editor.isActive('italic')) chain.unsetBold().unsetItalic(); else chain.setBold().setItalic(); chain.run() }
+  const editLink = () => { const href = prompt('URL ссылки (https://)', editor.getAttributes('link').href || ''); if (href === null) return; if (!href.trim()) editor.chain().focus().unsetLink().run(); else editor.chain().focus().setLink({ href: href.trim() }).run() }
   async function upload(event: React.FormEvent) {
     event.preventDefault(); if (!file || !alt.trim()) return
     setBusy(true); setError('')
@@ -32,9 +34,9 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: { ini
     {tool('Заголовок H3', <span className="px-1 text-sm font-bold">H3</span>, () => editor.chain().focus().toggleHeading({ level: 3 }).run(), editor.isActive('heading', { level: 3 }))}
     {tool('Жирный', <Bold size={18}/>, () => editor.chain().focus().toggleBold().run(), editor.isActive('bold'))}
     {tool('Курсив', <Italic size={18}/>, () => editor.chain().focus().toggleItalic().run(), editor.isActive('italic'))}
-    {tool('Жирный курсив', <span className="px-1 text-sm font-bold italic">BI</span>, () => editor.chain().focus().toggleBold().toggleItalic().run())}
+    {tool('Жирный курсив', <span className="px-1 text-sm font-bold italic">BI</span>, toggleBoldItalic, editor.isActive('bold') && editor.isActive('italic'))}
     {tool('Зачёркнутый', <Strikethrough size={18}/>, () => editor.chain().focus().toggleStrike().run(), editor.isActive('strike'))}
-    {tool('Ссылка', <Link2 size={18}/>, () => { const href = prompt('URL ссылки (https://)'); if (href) editor.chain().focus().setLink({ href }).run() }, editor.isActive('link'))}
+    {tool('Ссылка', <Link2 size={18}/>, editLink, editor.isActive('link'))}
     {tool('Маркированный список', <List size={18}/>, () => editor.chain().focus().toggleBulletList().run(), editor.isActive('bulletList'))}
     {tool('Нумерованный список', <ListOrdered size={18}/>, () => editor.chain().focus().toggleOrderedList().run(), editor.isActive('orderedList'))}
     {tool('Цитата', <Quote size={18}/>, () => editor.chain().focus().toggleBlockquote().run(), editor.isActive('blockquote'))}

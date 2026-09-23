@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { adminSession } from '@/lib/auth'
 import { serviceSupabase } from '@/lib/supabase'
+import { isUuid } from '@/lib/validation'
 
 const bot = /bot|crawler|spider|slurp|preview|fetch|facebookexternalhit|telegram|whatsapp|vkshare|headless/i
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
+  if (!isUuid(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 })
   if (bot.test(request.headers.get('user-agent') || '')) return new NextResponse(null, { status: 204 })
   if (await adminSession()) return new NextResponse(null, { status: 204 })
   const cookieName = `blog-view-${id}`

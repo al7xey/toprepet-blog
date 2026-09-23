@@ -26,10 +26,10 @@ export default async function Home() {
     </section>
 
     <section className="page-shell section-block" aria-labelledby="articles-title">
-      <h2 id="articles-title" className="section-title">Свежие статьи</h2>
+      <h2 id="articles-title" className="section-title">Свежее</h2>
       {articles.length ? <div className="article-grid">{articles.slice(0, 6).map(article => <ArticleCard key={article.id} article={article} categories={rubrics}/>)}</div> : <p className="empty-message">Пока нет опубликованных статей.</p>}
     </section>
 
-    {popular.length > 0 && <section className="page-shell section-block" aria-labelledby="popular-title"><h2 id="popular-title" className="section-title">Популярные статьи</h2><div className="article-grid">{popular.map(article => <ArticleCard key={article.id} article={article} categories={rubrics}/>)}</div></section>}
+    {popular.length > 0 && <section className="page-shell section-block" aria-labelledby="popular-title"><h2 id="popular-title" className="section-title">Популярное</h2><div className="article-grid">{popular.map(article => <ArticleCard key={article.id} article={article} categories={rubrics}/>)}</div></section>}
   </main>
 }

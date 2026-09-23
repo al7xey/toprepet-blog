@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { authorizeMutation, errorJson } from '@/lib/admin-api'
+import { isUuid } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   const auth = await authorizeMutation(request)
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
   const alt = String(form.get('alt') || '').trim()
   const cover = form.get('cover') === 'true'
   if (!(file instanceof File) || file.type !== 'image/webp' || file.size > 450 * 1024 || file.size === 0) return errorJson('Нужен оптимизированный WebP до 450 КБ')
-  if (!/^[0-9a-f-]{36}$/i.test(articleId) || !alt) return errorJson('Укажите статью и описание изображения')
+  if (!isUuid(articleId) || !alt) return errorJson('Укажите статью и описание изображения')
   const db = auth.session!.supabase
   const { data: article } = await db.from('articles').select('id').eq('id', articleId).maybeSingle()
   if (!article) return errorJson('Статья не найдена', 404)

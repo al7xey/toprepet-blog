@@ -49,6 +49,7 @@ button { cursor:pointer; }
 .article-card-media img { width:100%; height:100%; object-fit:cover; }
 .article-card-placeholder { display:flex; align-items:center; justify-content:center; color:var(--orange); }
 .article-card-body { display:flex; flex:1; flex-direction:column; padding:23px; }
+.article-card-byline { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:#8a929b; font-size:.72rem; }
 .article-card-category { color:var(--orange-dark); font-size:.7rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
 .article-card h3 { margin-top:11px; font-size:1.16rem; line-height:1.4; font-weight:800; letter-spacing:-.03em; }
 .article-card h3 a:hover { color:var(--orange-dark); }

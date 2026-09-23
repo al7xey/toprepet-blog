@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { transliterate } from 'transliteration'
 import { authorizeMutation, errorJson } from '@/lib/admin-api'
 import { imageMetadata, renderContent } from '@/lib/content'
+import { isUuid } from '@/lib/validation'
 
 export async function POST(request: NextRequest) {
   const auth = await authorizeMutation(request)
@@ -10,8 +11,8 @@ export async function POST(request: NextRequest) {
   const title = String(body.title || '').trim()
   const slug = String(body.slug || transliterate(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')).trim()
   const categoryId = String(body.category_id || '')
-  if (!title || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || !/^[0-9a-f-]{36}$/i.test(categoryId)) return errorJson('Проверьте заголовок, адрес и рубрику')
-  if (body.cover_image_url && !String(body.cover_image_alt || '').trim()) return errorJson('Добавьте alt для обложки')
+  if (!title || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || !isUuid(categoryId)) return errorJson('Проверьте заголовок, адрес и рубрику')
+  if (body.cover_image_url) return errorJson('Сначала сохраните статью, затем загрузите обложку')
   let content
   try { content = renderContent(body.content_json) } catch { return errorJson('Некорректный текст статьи') }
   if (imageMetadata(body.content_json).some(image => !image.alt)) return errorJson('Укажите alt для каждого изображения')
