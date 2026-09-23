@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeMutation, errorJson } from '@/lib/admin-api'
-import { imageMetadata, renderContent } from '@/lib/content'
+import { articlePlainText, imageMetadata, renderContent, suggestedExcerpt } from '@/lib/content'
 import { isUuid } from '@/lib/validation'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +18,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const images = imageMetadata(body.content_json)
   if (images.some(image => !image.alt)) return errorJson('Укажите alt для каждого изображения')
   const status = body.status === 'published' ? 'published' : 'draft'
-  if (status === 'published' && (!String(body.excerpt || '').trim() || !content.html.trim())) return errorJson('Для публикации нужны анонс и текст')
+  const excerpt = String(body.excerpt || '').trim() || suggestedExcerpt(body.content_json)
+  if (status === 'published' && !articlePlainText(body.content_json)) return errorJson('Добавьте текст статьи перед публикацией')
   const db = auth.session!.supabase
   const coverUrl = body.cover_image_url ? String(body.cover_image_url) : null
   const coverAlt = coverUrl ? String(body.cover_image_alt || '').trim() : null
@@ -26,7 +27,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { data: cover, error: coverError } = await db.from('media').select('id').eq('article_id', id).eq('public_url', coverUrl).maybeSingle()
     if (coverError || !cover) return errorJson('Обложка должна быть загружена через медиатеку статьи')
   }
-  const { error } = await db.from('articles').update({ title, slug, excerpt: String(body.excerpt || '').trim(), content_json: body.content_json, content_html: content.html, category_id: body.category_id, cover_image_url: coverUrl, cover_image_alt: coverAlt, seo_title: body.seo_title || null, seo_description: body.seo_description || null, status, is_featured: Boolean(body.is_featured) }).eq('id', id)
+  const { error } = await db.from('articles').update({ title, slug, excerpt, content_json: body.content_json, content_html: content.html, category_id: body.category_id, cover_image_url: coverUrl, cover_image_alt: coverAlt, seo_title: body.seo_title || null, seo_description: body.seo_description || null, status, is_featured: Boolean(body.is_featured) }).eq('id', id)
   if (error) return errorJson(error.code === '23505' ? 'Такой адрес статьи уже занят' : error.message)
   for (const image of images) {
     const { error: mediaError } = await db.from('media').update({ alt: image.alt, caption: image.caption }).eq('id', image.id).eq('article_id', id)

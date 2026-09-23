@@ -11,7 +11,7 @@ export function ArticleCard({ article, categories }: { article: Article; categor
     <div className="article-card-body">
       <div className="article-card-byline">{category && <Link href={rubricHref(category, categories)} className="article-card-category">{category.name}</Link>}<span>{article.author_name}</span></div>
       <h3><Link href={`/articles/${article.slug}`}>{article.title}</Link></h3>
-      <p className="line-clamp-3">{article.excerpt}</p>
+      <p className="line-clamp-2">{article.excerpt}</p>
       <div className="article-card-meta"><time dateTime={article.published_at || undefined}>{displayDate(article.published_at)}</time><span aria-hidden="true">·</span><span>{displayViews(article.view_count)}</span><span aria-hidden="true">·</span><span>{displayReadingTime(article.content_json)}</span></div>
     </div>
   </article>

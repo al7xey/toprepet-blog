@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { renderContent, sanitizeHtml, headingsFromHtml } from '../lib/content.ts'
+import { renderContent, sanitizeHtml, headingsFromHtml, articlePlainText, suggestedExcerpt } from '../lib/content.ts'
 import { categoryBranchIds, categoryPath, readingTimeMinutes, resolveCategory, relatedArticles } from '../lib/data.ts'
 
 test('article HTML has stable H2/H3 anchors and safe text', () => {
@@ -21,6 +21,16 @@ test('raw scripts and unsafe links never survive', () => {
   assert.ok(!sanitizeHtml('<script>alert(1)</script><p onclick="x()">Text</p>').includes('<script'))
   const { html } = renderContent({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'link', marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }] }] }] })
   assert.ok(!html.includes('href='))
+})
+
+test('an excerpt can be suggested from formatted article text', () => {
+  const doc = { type: 'doc', content: [
+    { type: 'paragraph', content: [{ type: 'text', text: 'Подготовка ' }, { type: 'text', text: 'к ОГЭ', marks: [{ type: 'bold' }] }] },
+    { type: 'paragraph', content: [{ type: 'text', text: 'Начните с простых заданий и постепенно переходите к сложным.' }] },
+  ] }
+  assert.equal(articlePlainText(doc), 'Подготовка к ОГЭ Начните с простых заданий и постепенно переходите к сложным.')
+  assert.equal(suggestedExcerpt(doc, 32), 'Подготовка к ОГЭ Начните с…')
+  assert.equal(articlePlainText({ type: 'doc', content: [{ type: 'paragraph' }] }), '')
 })
 
 test('nested rubric resolves only along the complete parent path', () => {

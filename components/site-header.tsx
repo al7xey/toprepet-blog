@@ -15,11 +15,7 @@ export function SiteHeader() {
   return <header className="site-header">
     <div className="page-shell header-inner">
       <Logo/>
-      <nav aria-label="Основная навигация" className="header-nav">
-        <Link href="/">Главная</Link>
-        <a href={MAIN_URL}>Занятия</a>
-      </nav>
-      <a href={MAIN_URL} className="button-primary header-contact"><span className="header-contact-full">Найти репетитора</span><span className="header-contact-short">Занятия</span></a>
+      <a href={MAIN_URL} className="main-site-link">Основной сайт <span aria-hidden="true">↗</span></a>
     </div>
   </header>
 }

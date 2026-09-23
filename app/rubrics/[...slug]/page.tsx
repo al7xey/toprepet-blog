@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowRight } from 'lucide-react'
 import { ArticleCard } from '@/components/article-card'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { categoryBranchIds, categoryPath, resolveCategory, rubricHref } from '@/lib/data'
@@ -31,8 +30,8 @@ export default async function RubricPage({ params }: Props) {
   const shown = articles.filter(a => categoryBranchIds(category.id, all).has(a.category_id))
   const path = categoryPath(category, all)
   const breadcrumbSchema = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Блог', item: siteUrl('/') }, ...path.map((item, index) => ({ '@type': 'ListItem', position: index + 2, name: item.name, item: siteUrl(rubricHref(item, all)) }))] }
-  return <main className="page-shell py-12 sm:py-18"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema).replace(/</g, '\\u003c') }}/><Breadcrumbs category={category} categories={all}/><header className="max-w-[760px] pb-8"><h1 className="text-5xl font-extrabold leading-[1.12] tracking-[-.05em] sm:text-6xl">{category.name}</h1>{category.description && <p className="mt-5 text-lg leading-8 text-[#667085]">{category.description}</p>}</header>
-    {children.length > 0 && <section className="section-block"><h2 className="section-title">Темы</h2><div className="rubric-grid">{children.map(child => <Link key={child.id} href={rubricHref(child, all)} className="rubric-card"><h3>{child.name}</h3><p>{child.description || 'Статьи и разборы по теме'}</p><ArrowRight className="rubric-card-arrow" size={20}/></Link>)}</div></section>}
-    <section className="section-block"><h2 className="section-title">Статьи</h2>{shown.length ? <div className="article-grid">{shown.map(a => <ArticleCard key={a.id} article={a} categories={all}/>)}</div> : <p className="empty-message">В этой рубрике пока нет опубликованных статей.</p>}</section>
+  return <main className="page-shell rubric-page"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema).replace(/</g, '\\u003c') }}/><Breadcrumbs category={category} categories={all}/><header className="rubric-heading"><h1>{category.name}</h1>{category.description && <p>{category.description}</p>}</header>
+    {children.length > 0 && <nav className="rubric-nav rubric-children" aria-label="Разделы рубрики"><span>Разделы</span><div className="rubric-links">{children.map(child => <Link key={child.id} href={rubricHref(child, all)}>{child.name} <span aria-hidden="true">↗</span></Link>)}</div></nav>}
+    <section className="section-block"><h2 className="section-title">Статьи</h2>{shown.length ? <div className="article-list">{shown.map(a => <ArticleCard key={a.id} article={a} categories={all}/>)}</div> : <p className="empty-message">В этой рубрике пока нет опубликованных статей.</p>}</section>
   </main>
 }

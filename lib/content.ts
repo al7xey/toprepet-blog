@@ -12,6 +12,25 @@ const imageUrl = (value: unknown) => { const url = safeUrl(value); const host = 
 const slug = (text: string) => transliterate(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'section'
 const textOf = (node: Node): string => node.text || (node.content || []).map(textOf).join('')
 
+export function articlePlainText(value: unknown): string {
+  const visit = (node: Node): string => {
+    if (node.type === 'text') return node.text || ''
+    if (node.type === 'hardBreak') return ' '
+    const separator = ['doc', 'bulletList', 'orderedList', 'listItem', 'blockquote'].includes(node.type || '') ? ' ' : ''
+    return (node.content || []).map(visit).join(separator)
+  }
+  if (!value || typeof value !== 'object') return ''
+  return visit(value as Node).replace(/\s+/g, ' ').trim()
+}
+
+export function suggestedExcerpt(value: unknown, maxLength = 180): string {
+  const text = articlePlainText(value)
+  if (text.length <= maxLength) return text
+  const sample = text.slice(0, maxLength + 1)
+  const lastSpace = sample.lastIndexOf(' ')
+  return `${sample.slice(0, lastSpace > maxLength / 2 ? lastSpace : maxLength).trimEnd()}…`
+}
+
 export function renderContent(value: unknown): { html: string; headings: Heading[] } {
   const root = value as Node
   if (!root || root.type !== 'doc' || !Array.isArray(root.content)) throw new Error('Некорректная структура статьи')
