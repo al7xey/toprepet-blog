@@ -64,7 +64,14 @@ export function readingTimeMinutes(content: unknown) {
   return Math.max(1, Math.ceil(words / 180))
 }
 
-export const displayReadingTime = (content: unknown) => `${readingTimeMinutes(content)} мин чтения`
+export const displayReadingTime = (minutes: number) => `${Math.max(1, minutes)} мин чтения`
 
 export const displayDate = (date: string | null) => date ? new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Moscow' }).format(new Date(date)) : ''
 export const displayViews = (count: number) => `${new Intl.NumberFormat('ru-RU').format(count)} ${new Intl.PluralRules('ru-RU').select(count) === 'one' ? 'просмотр' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'просмотра' : 'просмотров'}`
+
+export function slugRedirectTarget(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null
+  const joined = (value as { articles?: unknown }).articles
+  if (Array.isArray(joined)) return typeof joined[0]?.slug === 'string' ? joined[0].slug : null
+  return joined && typeof joined === 'object' && typeof (joined as { slug?: unknown }).slug === 'string' ? String((joined as { slug: string }).slug) : null
+}

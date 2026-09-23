@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { SiteHeader } from '@/components/site-header'
 import { Metrika } from '@/components/metrika'
 import { SITE_URL, siteUrl } from '@/lib/config'
@@ -15,5 +16,5 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru"><body><SiteHeader/>{children}<footer className="site-footer"><div className="page-shell footer-inner"><span>© TopRepet</span><a href="https://toprepet.ru/">Основной сайт ↗</a></div></footer><Metrika/></body></html>
+  return <html lang="ru"><body><SiteHeader/>{children}<footer className="site-footer"><div className="page-shell footer-inner"><span>© TopRepet</span><a href="https://toprepet.ru/">Основной сайт ↗</a></div></footer><Suspense fallback={null}><Metrika/></Suspense></body></html>
 }

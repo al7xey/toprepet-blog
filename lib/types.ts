@@ -1,3 +1,10 @@
 export type Category = { id: string; name: string; slug: string; parent_id: string | null; description: string | null; sort_order: number; created_at: string; updated_at: string }
-export type Article = { id: string; title: string; slug: string; excerpt: string; content_json: Record<string, unknown>; content_html: string; cover_image_url: string | null; cover_image_alt: string | null; status: 'draft' | 'published'; category_id: string; author_name: string; seo_title: string | null; seo_description: string | null; published_at: string | null; modified_at: string | null; created_at: string; updated_at: string; view_count: number; is_featured: boolean }
-export type Media = { id: string; article_id: string | null; storage_path: string; public_url: string; alt: string; caption: string | null; width: number; height: number; file_size: number; mime_type: string; created_at: string }
+export type ArticleStatus = 'draft' | 'published'
+export type HeadingData = { id: string; level: 2 | 3; text: string }
+export type ArticleCardData = { id: string; title: string; slug: string; excerpt: string; cover_image_url: string | null; cover_image_alt: string | null; category_id: string; author_name: string; published_at: string | null; modified_at: string | null; view_count: number; reading_time_minutes: number }
+export type ArticleDetail = ArticleCardData & { content_json: Record<string, unknown>; content_html: string; toc_json: HeadingData[]; seo_title: string | null; seo_description: string | null; status: ArticleStatus; created_at: string; updated_at: string }
+export type ArticleAdminListData = { id: string; title: string; slug: string; status: ArticleStatus; category_id: string; published_at: string | null; modified_at: string | null; updated_at: string; created_at: string; view_count: number }
+export type ArticleSitemapData = { slug: string; published_at: string | null; modified_at: string | null; updated_at: string }
+export type Article = ArticleDetail
+export type Media = { id: string; article_id: string | null; storage_path: string; public_url: string; alt: string; caption: string | null; width: number; height: number; file_size: number; mime_type: string; status: 'temporary' | 'attached'; created_at: string }
+export type Paginated<T> = { items: T[]; total: number; page: number; pageSize: number; pageCount: number }

@@ -1,9 +1,10 @@
 import DOMPurify from 'dompurify'
 import { JSDOM } from 'jsdom'
 import { transliterate } from 'transliteration'
+import type { HeadingData } from './types'
 
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: { type: string; attrs?: Record<string, unknown> }[]; content?: Node[] }
-export type Heading = { id: string; level: 2 | 3; text: string }
+export type Heading = HeadingData
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 
 const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -49,6 +50,7 @@ export function renderContent(value: unknown): { html: string; headings: Heading
           if (mark.type === 'italic') html = `<em>${html}</em>`
           if (mark.type === 'strike') html = `<s>${html}</s>`
           if (mark.type === 'link') { const href = safeUrl(mark.attrs?.href); if (href) html = `<a href="${escape(href)}" rel="noopener noreferrer">${html}</a>` }
+          if (!['bold', 'italic', 'strike', 'link'].includes(mark.type)) throw new Error(`Unsupported mark: ${mark.type}`)
         }
         return html
       }
@@ -73,11 +75,14 @@ export function renderContent(value: unknown): { html: string; headings: Heading
       case 'image': {
         const src = imageUrl(node.attrs?.src)
         const alt = String(node.attrs?.alt || '').trim()
-        if (!src || !alt) throw new Error('У изображения должны быть адрес и alt')
+        const mediaId = String(node.attrs?.mediaId || '')
+        const width = Number(node.attrs?.width)
+        const height = Number(node.attrs?.height)
+        if (!src || !alt || !isUuid(mediaId) || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 1600 || height > 1600) throw new Error('У изображения должны быть адрес, alt, mediaId и размеры')
         const caption = String(node.attrs?.caption || '').trim()
-        return `<figure><img src="${escape(src)}" alt="${escape(alt)}" loading="lazy">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
+        return `<figure><img src="${escape(src)}" alt="${escape(alt)}" width="${width}" height="${height}" loading="lazy" decoding="async" data-media-id="${escape(mediaId)}">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
       }
-      default: return ''
+      default: throw new Error(`Unsupported node: ${node.type || 'unknown'}`)
     }
   }
   const html = render(root)
@@ -88,7 +93,7 @@ export function sanitizeHtml(html: string) {
   const window = new JSDOM('').window
   const clean = DOMPurify(window as unknown as Parameters<typeof DOMPurify>[0]).sanitize(html, {
     ALLOWED_TAGS: ['p','br','strong','em','s','a','h2','h3','ul','ol','li','blockquote','hr','figure','img','figcaption'],
-    ALLOWED_ATTR: ['href','rel','id','src','alt','loading'],
+    ALLOWED_ATTR: ['href','rel','id','src','alt','width','height','loading','decoding','data-media-id'],
   })
   window.close()
   return clean
@@ -102,10 +107,10 @@ export function headingsFromHtml(html: string): Heading[] {
 }
 
 export function imageMetadata(value: unknown) {
-  const images: { id: string; alt: string; caption: string | null }[] = []
+  const images: { id: string; alt: string; caption: string | null; width: number; height: number }[] = []
   const visit = (node: Node) => {
     const mediaId = String(node.attrs?.mediaId || '')
-    if (node.type === 'image' && isUuid(mediaId)) images.push({ id: mediaId, alt: String(node.attrs?.alt || '').trim(), caption: String(node.attrs?.caption || '').trim() || null })
+    if (node.type === 'image' && isUuid(mediaId)) images.push({ id: mediaId, alt: String(node.attrs?.alt || '').trim(), caption: String(node.attrs?.caption || '').trim() || null, width: Number(node.attrs?.width), height: Number(node.attrs?.height) })
     for (const child of node.content || []) visit(child)
   }
   visit(value as Node)

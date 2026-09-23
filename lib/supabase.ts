@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { supabaseConfig } from './config'
 
+export function publicSupabase() {
+  const config = supabaseConfig()
+  if (!config) return null
+  return createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+}
+
 export async function serverSupabase() {
   const config = supabaseConfig()
   if (!config) return null

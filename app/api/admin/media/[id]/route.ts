@@ -6,7 +6,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if ('error' in auth) return auth.error
   const { id } = await params
   const db = auth.session!.supabase
-  const { data } = await db.from('media').select('storage_path').eq('id', id).maybeSingle()
+  const { data } = await db.from('media').select('storage_path').eq('id', id).eq('status', 'temporary').maybeSingle()
   if (!data) return errorJson('Изображение не найдено', 404)
   const { error: storageError } = await db.storage.from('article-images').remove([data.storage_path])
   if (storageError) return errorJson(storageError.message)

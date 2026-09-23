@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { renderContent, sanitizeHtml, headingsFromHtml, articlePlainText, suggestedExcerpt } from '../lib/content.ts'
-import { categoryBranchIds, categoryPath, readingTimeMinutes, resolveCategory, relatedArticles } from '../lib/data.ts'
+import { categoryBranchIds, categoryPath, displayDate, readingTimeMinutes, resolveCategory, relatedArticles, slugRedirectTarget } from '../lib/data.ts'
 
 test('article HTML has stable H2/H3 anchors and safe text', () => {
   const { html, headings } = renderContent({ type: 'doc', content: [
@@ -56,4 +56,26 @@ test('reading time uses the Tiptap text and never returns zero', () => {
   assert.equal(readingTimeMinutes({ type: 'doc', content: [] }), 1)
   const words = Array.from({ length: 181 }, (_, index) => `слово${index}`).join(' ')
   assert.equal(readingTimeMinutes({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: words }] }] }), 2)
+})
+
+test('unsupported editor nodes are rejected instead of silently disappearing', () => {
+  assert.throws(() => renderContent({ type: 'doc', content: [{ type: 'codeBlock', content: [{ type: 'text', text: 'unsafe' }] }] }), /Unsupported node/)
+})
+
+test('images keep accessible metadata and intrinsic dimensions', () => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
+  const { html } = renderContent({ type: 'doc', content: [{ type: 'image', attrs: { src: 'https://example.supabase.co/storage/v1/object/public/article-images/articles/a/image.webp', alt: 'Схема', caption: 'Подпись', mediaId: '123e4567-e89b-42d3-a456-426614174000', width: 1200, height: 800 } }] })
+  assert.match(html, /width="1200" height="800" loading="lazy" decoding="async"/)
+  assert.match(html, /<figcaption>Подпись<\/figcaption>/)
+})
+
+test('slug redirect lookup accepts Supabase object and array joins', () => {
+  assert.equal(slugRedirectTarget({ articles: { slug: 'new-address' } }), 'new-address')
+  assert.equal(slugRedirectTarget({ articles: [{ slug: 'new-address' }] }), 'new-address')
+  assert.equal(slugRedirectTarget(null), null)
+})
+
+test('editorial dates use the stable Russian display format', () => {
+  assert.equal(displayDate('2026-09-25T10:00:00.000Z'), '25 сентября 2026 г.')
+  assert.equal(displayDate(null), '')
 })
