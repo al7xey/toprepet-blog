@@ -11,10 +11,10 @@ button { cursor:pointer; }
 .paper { background:#fff; border:1px solid var(--line); border-radius:20px; }
 
 .site-header { position:sticky; top:0; z-index:1000; background:rgb(255 255 255 / 96%); border-bottom:1px solid var(--line); backdrop-filter:blur(16px); }
-.header-inner { height:var(--header-height); display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.header-inner { position:relative; height:var(--header-height); display:flex; align-items:center; justify-content:space-between; gap:16px; }
 .brand { display:inline-flex; align-items:center; gap:10px; font-size:1.55rem; font-weight:750; letter-spacing:-1.05px; line-height:1; }
 .brand-symbol { width:34px; height:34px; color:var(--orange); flex-shrink:0; }
-.header-nav { display:flex; align-items:center; gap:28px; margin-left:auto; }
+.header-nav { position:absolute; left:50%; display:flex; align-items:center; gap:28px; transform:translateX(-50%); }
 .header-nav a { color:var(--muted); font-size:.9rem; font-weight:650; }
 .header-nav a:hover,.site-footer a:hover { color:var(--orange-dark); }
 .header-main-button { min-height:44px!important; padding:10px 18px!important; border-radius:14px!important; white-space:nowrap; }
@@ -26,7 +26,6 @@ button { cursor:pointer; }
 .blog-intro { padding-block:72px 64px; }
 .blog-intro h1,.rubric-heading h1 { max-width:780px; margin:0; font-size:clamp(2.6rem,5vw,3.75rem); line-height:1.12; letter-spacing:-.055em; font-weight:680; }
 .blog-intro > p:not(.section-label),.rubric-heading p { max-width:650px; margin:18px 0 0; color:var(--muted); font-size:1.04rem; line-height:1.7; }
-.section-label { margin:0 0 12px; color:var(--orange-dark); font-size:.83rem; font-weight:750; letter-spacing:.01em; }
 .intro-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:30px; }
 .rubric-nav { display:flex; align-items:baseline; gap:26px; padding-block:20px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
 .rubric-nav > span { flex:none; color:var(--muted); font-size:.78rem; font-weight:750; }
@@ -35,7 +34,7 @@ button { cursor:pointer; }
 .rubric-links a:hover { border-color:var(--orange); color:var(--orange-dark); }
 .section-block { padding-block:48px 30px; scroll-margin-top:calc(var(--header-height) + 24px); }
 .section-title { margin:0; font-size:clamp(1.7rem,2.5vw,2.25rem); line-height:1.2; font-weight:680; letter-spacing:-.045em; }
-.section-heading-simple { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:22px; }
+.section-heading-simple { display:flex; align-items:center; gap:12px; margin-bottom:22px; }
 .section-heading-simple > svg { width:28px; height:28px; color:var(--orange); stroke-width:1.7; }
 .empty-message { margin:0; padding:24px 0; color:var(--muted); font-size:.96rem; }
 .rubric-page,.article-page { padding-top:42px; }
@@ -62,7 +61,7 @@ button { cursor:pointer; }
 .empty-state-compact { align-items:flex-start; }
 .blog-cta { display:flex; align-items:center; justify-content:space-between; gap:32px; margin-top:46px; padding:34px 38px; border-radius:28px; background:var(--surface); }
 .blog-cta h2 { margin:0; font-size:clamp(1.7rem,3vw,2.25rem); line-height:1.2; font-weight:680; letter-spacing:-.045em; }
-.blog-cta p:not(.section-label) { margin:10px 0 0; color:var(--muted); }
+.blog-cta p { margin:10px 0 0; color:var(--muted); }
 
 .article-list { max-width:100%; }
 .article-card { display:grid; grid-template-columns:190px minmax(0,1fr); gap:25px; padding-block:23px; border-top:1px solid var(--line); }
@@ -112,6 +111,7 @@ button { cursor:pointer; }
 .text-link { display:inline-flex; align-items:center; gap:7px; color:var(--ink); font-size:.89rem; font-weight:800; }
 .text-link:hover { color:var(--orange-dark); }
 .field { width:100%; min-width:0; background:#fff; border:1px solid #dcd6d0; border-radius:11px; padding:12px 14px; }
+.password-field-visible { letter-spacing:normal; }
 .field:focus { outline:2px solid var(--orange); border-color:transparent; }
 .label { display:block; margin-bottom:7px; font-size:.82rem; font-weight:800; }
 .eyebrow { color:var(--orange-dark); font-size:.73rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
