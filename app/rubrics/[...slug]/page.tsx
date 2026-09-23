@@ -36,7 +36,7 @@ export default async function RubricPage({ params, searchParams }: Props) {
   const base = `/rubrics/${slug.join('/')}`
   const breadcrumbSchema = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Блог', item: siteUrl('/') }, ...path.map((item, index) => ({ '@type': 'ListItem', position: index + 2, name: item.name, item: siteUrl(rubricHref(item, all)) }))] }
   return <main className="page-shell rubric-page"><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema).replace(/</g, '\\u003c') }}/><Breadcrumbs category={category} categories={all}/><header className="rubric-heading"><h1>{category.name}</h1>{category.description && <p>{category.description}</p>}</header>
-    {children.length > 0 && <nav className="rubric-nav rubric-children" aria-label="Разделы рубрики"><span>Разделы</span><div className="rubric-links">{children.map(child => <Link key={child.id} href={rubricHref(child, all)}>{child.name} <span aria-hidden="true">↗</span></Link>)}</div></nav>}
+    {children.length > 0 && <nav className="rubric-nav rubric-children" aria-label="Разделы рубрики"><span>Разделы</span><div className="rubric-links">{children.map(child => <Link key={child.id} href={rubricHref(child, all)}>{child.name}</Link>)}</div></nav>}
     <section className="section-block"><h2 className="section-title">Статьи</h2><div className="article-list">{result.items.map(article => <ArticleCard key={article.id} article={article} categories={all}/>)}</div><Pagination page={result.page} pageCount={result.pageCount} href={next => next === 1 ? base : `${base}?page=${next}`}/></section>
   </main>
 }
