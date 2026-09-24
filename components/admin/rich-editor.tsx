@@ -25,6 +25,8 @@ const ArticleImage = TiptapImage.extend({
       mediaId: { default: null },
       width: { default: null },
       height: { default: null },
+      displaySize: { default: 'content' },
+      alignment: { default: 'center' },
     }
   },
 })
@@ -56,7 +58,7 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ heading: { levels: [2, 3] }, code: false, codeBlock: false }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] }, code: false, codeBlock: false }),
       ArticleImage.configure({ inline: false, allowBase64: false }),
     ],
     content: initial,
@@ -90,7 +92,8 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
   if (!editor) return <div className="paper simple-editor-loading">Подготавливаем редактор…</div>
 
   const selectedImage = editor.isActive('image') ? editor.getAttributes('image') : null
-  const block = editor.isActive('heading', { level: 2 }) ? 'h2' : editor.isActive('heading', { level: 3 }) ? 'h3' : 'p'
+  const activeHeading = [1, 2, 3, 4, 5, 6].find(level => editor.isActive('heading', { level }))
+  const block = activeHeading ? `h${activeHeading}` : 'p'
   const text = editor.getText({ blockSeparator: ' ' }).trim()
   const words = text ? text.split(/\s+/).length : 0
 
@@ -178,6 +181,8 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
           caption: caption.trim() || null,
           width: image.width,
           height: image.height,
+          displaySize: 'content',
+          alignment: 'center',
         })
         .run()
       setFile(null)
@@ -199,14 +204,18 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
           value={block}
           disabled={busy}
           onChange={(event) => {
-            if (event.target.value === 'h2') editor.chain().focus().setHeading({ level: 2 }).run()
-            else if (event.target.value === 'h3') editor.chain().focus().setHeading({ level: 3 }).run()
+            const level = Number(event.target.value.slice(1))
+            if (level >= 1 && level <= 6) editor.chain().focus().setHeading({ level: level as 1 | 2 | 3 | 4 | 5 | 6 }).run()
             else editor.chain().focus().setParagraph().run()
           }}
         >
           <option value="p">Обычный текст</option>
+          <option value="h1">Заголовок H1</option>
           <option value="h2">Заголовок H2</option>
           <option value="h3">Заголовок H3</option>
+          <option value="h4">Заголовок H4</option>
+          <option value="h5">Заголовок H5</option>
+          <option value="h6">Заголовок H6</option>
         </select>
         <div className="simple-editor-toolbar-group">
           {command('Жирный', () => editor.chain().focus().toggleBold().run(), editor.isActive('bold'), false, <Bold size={18} />)}
@@ -265,7 +274,7 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
             <input
               id="editor-image-file"
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept="image/*"
               onChange={(event) => setFile(event.target.files?.[0] || null)}
             />
             {file && <p className="simple-editor-file-name">Выбрано: {file.name}</p>}
@@ -279,13 +288,14 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
             <input id="editor-image-caption" className="field" value={caption} maxLength={400} onChange={(event) => setCaption(event.target.value)} />
           </div>
           <div className="simple-editor-image-actions">
-            <button type="submit" className="button-primary" disabled={busy}>{busy ? 'Загружаем…' : 'Добавить'}</button>
+            <button type="submit" className="button-primary" disabled={busy}>{busy ? 'Подготавливаем и сжимаем…' : 'Добавить'}</button>
             <button type="button" className="button-outline" disabled={busy} onClick={() => setPanel(null)}>Отмена</button>
           </div>
         </form>
       )}
 
       {error && <p role="alert" className="simple-editor-error">{error}</p>}
+      {block === 'h1' && <p className="editor-hint">H1 обычно используется для названия статьи. Для разделов лучше использовать H2–H6.</p>}
 
       <div className="simple-editor-area" onClick={() => editor.chain().focus().run()}>
         {editor.isEmpty && <span className="simple-editor-placeholder">Начните писать статью…</span>}
@@ -302,6 +312,18 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
           <div>
             <label className="label" htmlFor="editor-selected-alt">Описание изображения</label>
             <input id="editor-selected-alt" className="field" value={selectedImage.alt || ''} onChange={(event) => editor.commands.updateAttributes('image', { alt: event.target.value })} />
+          </div>
+          <div>
+            <label className="label" htmlFor="editor-selected-size">Размер</label>
+            <select id="editor-selected-size" className="field" value={selectedImage.displaySize || 'content'} onChange={(event) => editor.commands.updateAttributes('image', { displaySize: event.target.value })}>
+              <option value="small">Маленькое</option><option value="medium">Среднее</option><option value="large">Большое</option><option value="content">На ширину текста</option><option value="wide">Широкое</option>
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="editor-selected-alignment">Расположение</label>
+            <select id="editor-selected-alignment" className="field" value={selectedImage.alignment || 'center'} onChange={(event) => editor.commands.updateAttributes('image', { alignment: event.target.value })}>
+              <option value="left">Слева</option><option value="center">По центру</option><option value="right">Справа</option>
+            </select>
           </div>
           <div>
             <label className="label" htmlFor="editor-selected-caption">Подпись</label>

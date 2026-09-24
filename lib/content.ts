@@ -57,13 +57,13 @@ export function renderContent(value: unknown): { html: string; headings: Heading
       case 'paragraph': return `<p>${inner() || '<br>'}</p>`
       case 'heading': {
         const level = Number(node.attrs?.level)
-        if (level !== 2 && level !== 3) return `<p>${inner()}</p>`
+        if (![1, 2, 3, 4, 5, 6].includes(level)) return `<p>${inner()}</p>`
         const title = textOf(node)
         const base = slug(title)
         const count = used.get(base) || 0
         used.set(base, count + 1)
         const id = count ? `${base}-${count + 1}` : base
-        headings.push({ id, level, text: title })
+        if (level === 2 || level === 3) headings.push({ id, level, text: title })
         return `<h${level} id="${escape(id)}">${inner()}</h${level}>`
       }
       case 'bulletList': return `<ul>${inner()}</ul>`
@@ -78,9 +78,11 @@ export function renderContent(value: unknown): { html: string; headings: Heading
         const mediaId = String(node.attrs?.mediaId || '')
         const width = Number(node.attrs?.width)
         const height = Number(node.attrs?.height)
+        const displaySize = ['small', 'medium', 'large', 'content', 'wide'].includes(String(node.attrs?.displaySize)) ? String(node.attrs?.displaySize) : 'content'
+        const alignment = ['left', 'center', 'right'].includes(String(node.attrs?.alignment)) ? String(node.attrs?.alignment) : 'center'
         if (!src || !alt || !isUuid(mediaId) || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 1600 || height > 1600) throw new Error('У изображения должны быть адрес, alt, mediaId и размеры')
         const caption = String(node.attrs?.caption || '').trim()
-        return `<figure><img src="${escape(src)}" alt="${escape(alt)}" width="${width}" height="${height}" loading="lazy" decoding="async" data-media-id="${escape(mediaId)}">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
+        return `<figure class="article-image article-image--${displaySize} article-image--${alignment}"><img src="${escape(src)}" alt="${escape(alt)}" width="${width}" height="${height}" loading="lazy" decoding="async" data-media-id="${escape(mediaId)}">${caption ? `<figcaption>${escape(caption)}</figcaption>` : ''}</figure>`
       }
       default: throw new Error(`Unsupported node: ${node.type || 'unknown'}`)
     }
@@ -91,12 +93,12 @@ export function renderContent(value: unknown): { html: string; headings: Heading
 
 export function sanitizeHtml(html: string) {
   const root = parseFragment(html) as unknown as HtmlNode
-  const allowedTags = new Set(['p','br','strong','em','s','a','h2','h3','ul','ol','li','blockquote','hr','figure','img','figcaption'])
+  const allowedTags = new Set(['p','br','strong','em','s','a','h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','hr','figure','img','figcaption'])
   const dropWithContent = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template'])
   const allowedAttributes: Record<string, Set<string>> = {
     a: new Set(['href', 'rel']),
-    h2: new Set(['id']),
-    h3: new Set(['id']),
+    h1: new Set(['id']), h2: new Set(['id']), h3: new Set(['id']), h4: new Set(['id']), h5: new Set(['id']), h6: new Set(['id']),
+    figure: new Set(['class']),
     img: new Set(['src', 'alt', 'width', 'height', 'loading', 'decoding', 'data-media-id']),
   }
 
@@ -121,7 +123,8 @@ export function sanitizeHtml(html: string) {
         const safeHref = href ? safeUrl(href.value) : ''
         child.attrs = safeHref ? [{ name: 'href', value: safeHref }, { name: 'rel', value: 'noopener noreferrer' }] : []
       }
-      if (tag === 'h2' || tag === 'h3') child.attrs = (child.attrs || []).filter(attribute => attribute.name !== 'id' || /^[a-z0-9-]+$/.test(attribute.value))
+      if (/^h[1-6]$/.test(tag)) child.attrs = (child.attrs || []).filter(attribute => attribute.name !== 'id' || /^[a-z0-9-]+$/.test(attribute.value))
+      if (tag === 'figure') child.attrs = (child.attrs || []).filter(attribute => attribute.name !== 'class' || /^article-image article-image--(small|medium|large|content|wide) article-image--(left|center|right)$/.test(attribute.value))
       if (tag === 'img') {
         const attributes = Object.fromEntries((child.attrs || []).map(attribute => [attribute.name, attribute.value]))
         const src = imageUrl(attributes.src)

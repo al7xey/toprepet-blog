@@ -5,6 +5,7 @@ import { categoryBranchIds, categoryPath, displayDate, readingTimeMinutes, resol
 
 test('article HTML has stable H2/H3 anchors and safe text', () => {
   const { html, headings } = renderContent({ type: 'doc', content: [
+    { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Внутренний H1' }] },
     { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Тема & практика' }] },
     { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Типичные ошибки' }] },
     { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Тема & практика' }] },
@@ -15,6 +16,7 @@ test('article HTML has stable H2/H3 anchors and safe text', () => {
   assert.deepEqual(headingsFromHtml(html), headings)
   assert.ok(html.includes('&lt;script&gt;'))
   assert.ok(!html.includes('<script>'))
+  assert.ok(html.includes('<h1 id="vnutrenniy-h1">'))
 })
 
 test('raw scripts and unsafe links never survive', () => {
@@ -64,9 +66,10 @@ test('unsupported editor nodes are rejected instead of silently disappearing', (
 
 test('images keep accessible metadata and intrinsic dimensions', () => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example.supabase.co'
-  const { html } = renderContent({ type: 'doc', content: [{ type: 'image', attrs: { src: 'https://example.supabase.co/storage/v1/object/public/article-images/articles/a/image.webp', alt: 'Схема', caption: 'Подпись', mediaId: '123e4567-e89b-42d3-a456-426614174000', width: 1200, height: 800 } }] })
+  const { html } = renderContent({ type: 'doc', content: [{ type: 'image', attrs: { src: 'https://example.supabase.co/storage/v1/object/public/article-images/articles/a/image.webp', alt: 'Схема', caption: 'Подпись', mediaId: '123e4567-e89b-42d3-a456-426614174000', width: 1200, height: 800, displaySize: 'wide', alignment: 'right' } }] })
   assert.match(html, /width="1200" height="800" loading="lazy" decoding="async"/)
   assert.match(html, /<figcaption>Подпись<\/figcaption>/)
+  assert.match(html, /class="article-image article-image--wide article-image--right"/)
 })
 
 test('slug redirect lookup accepts Supabase object and array joins', () => {

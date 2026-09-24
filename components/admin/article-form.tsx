@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { transliterate } from 'transliteration'
 import type { ArticleDetail, Category } from '@/lib/types'
 import { compressImage } from '@/lib/compress-image'
+import { siteUrl } from '@/lib/config'
 
 const RichEditor = dynamic(() => import('./rich-editor').then(module => module.RichEditor), {
   ssr: false,
@@ -116,13 +117,13 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
     if (unchangedDuringSave) { dirtyRef.current = false; setDirty(false) }
     if (!quiet) setMessage(!unchangedDuringSave ? 'Сохранено, но после начала сохранения появились новые изменения.' : body.slugChanged ? `Статья сохранена. Старый адрес /articles/${body.oldSlug} теперь перенаправляет на новый.` : nextStatus === 'published' ? 'Статья опубликована' : 'Черновик сохранён')
     if (!quiet && unchangedDuringSave) {
-      if (!article) router.replace(`/admin/articles/${body.id}`)
+      if (!article) history.replaceState(history.state, '', `/admin/articles/${body.id}`)
       else router.refresh()
     }
     return body.id
   }
   async function perform(nextStatus: 'draft'|'published') { setBusy(true); setMessage(''); try { await save(nextStatus) } catch (error) { setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
-  async function preview() { const windowForPreview = window.open('', '_blank'); if (!windowForPreview) { setMessage('Разрешите открытие новой вкладки для предпросмотра'); return } setBusy(true); setMessage(''); try { const response = await fetch('/api/admin/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload(status), id: id || null, published_at: article?.published_at, modified_at: article?.modified_at, view_count: article?.view_count }) }); const body = await responseJson(response, 'Не удалось открыть предпросмотр'); if (typeof body.url !== 'string') throw new Error('Сервер не вернул адрес предпросмотра'); windowForPreview.location.href = body.url } catch (error) { windowForPreview.close(); setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
+  async function preview() { const windowForPreview = window.open('', '_blank'); if (!windowForPreview) { setMessage('Разрешите открытие новой вкладки для предпросмотра'); return } setBusy(true); setMessage(''); try { const articleId = idRef.current || await ensureArticleId(); const response = await fetch('/api/admin/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload(status), id: articleId, published_at: article?.published_at, modified_at: article?.modified_at, view_count: article?.view_count }) }); const body = await responseJson(response, 'Не удалось открыть предпросмотр'); if (typeof body.url !== 'string') throw new Error('Сервер не вернул адрес предпросмотра'); windowForPreview.location.href = body.url } catch (error) { windowForPreview.close(); setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
   async function ensureArticleId() {
     if (idRef.current) return idRef.current
     validate('draft')
@@ -144,7 +145,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
     markDirty()
     return { ...body, articleId } as { id: string; url: string; width: number; height: number; articleId: string }
   }
-  async function uploadCover() { if (!coverFile) { setMessage('Выберите файл обложки'); return } if (!coverAlt.trim()) { setMessage('Опишите изображение для alt'); return } setBusy(true); setMessage(''); try { const media = await upload(coverFile, coverAlt.trim(), '', true); setCoverUrl(media.url); setCoverFile(null); markDirty(); setMessage('Обложка загружена. Сохраните статью, чтобы применить её.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
+  async function uploadCover() { if (!coverFile) { setMessage('Выберите файл обложки'); return } if (!coverAlt.trim()) { setMessage('Опишите изображение для alt'); return } setBusy(true); setMessage('Подготавливаем и сжимаем изображение…'); try { const media = await upload(coverFile, coverAlt.trim(), '', true); setCoverUrl(media.url); setCoverFile(null); markDirty(); setMessage('Обложка загружена. Сохраните статью, чтобы применить её.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
   async function removeCover() { setCoverUrl(''); markDirty(); setMessage('Обложка будет удалена после сохранения.') }
   async function deleteImage(mediaId: string) { if (!pendingImageDeletes.current.includes(mediaId)) pendingImageDeletes.current.push(mediaId); markDirty() }
   async function removeArticle() { if (!id || !confirm('Удалить статью и все её изображения?')) return; const response = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' }); try { await responseJson(response, 'Не удалось удалить статью'); dirtyRef.current = false; router.push('/admin/articles'); router.refresh() } catch (error) { setMessage(error instanceof Error ? error.message : 'Не удалось удалить статью') } }
@@ -179,7 +180,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
       <summary className="cursor-pointer text-lg font-bold">Обложка <span className="ml-2 text-sm font-normal text-[#697383]">необязательно</span></summary>
       <div className="mt-5 space-y-4">
         {coverUrl && <Image src={coverUrl} alt={coverAlt || 'Обложка статьи'} width={720} height={405} sizes="(max-width: 860px) 100vw, 720px" className="aspect-video w-full rounded-xl object-cover"/>}
-        <div><label className="label" htmlFor="cover-file">Выбрать изображение</label><input id="cover-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => setCoverFile(event.target.files?.[0] || null)}/></div>
+        <div><label className="label" htmlFor="cover-file">Выбрать изображение</label><input id="cover-file" type="file" accept="image/*" onChange={event => setCoverFile(event.target.files?.[0] || null)}/></div>
         <div><label className="label" htmlFor="cover-alt">Что изображено</label><input id="cover-alt" className="field" value={coverAlt} onChange={event => { setCoverAlt(event.target.value); markDirty() }}/><p className="mt-2 text-xs text-[#697383]">Описание нужно для доступности и поиска.</p></div>
         <div className="flex flex-wrap items-center gap-4"><button type="button" className="button-outline" disabled={!coverFile || busy} onClick={uploadCover}>{coverUrl ? 'Заменить обложку' : 'Добавить обложку'}</button>{coverUrl && <button type="button" className="text-sm text-red-700 underline" disabled={busy} onClick={removeCover}>Удалить обложку</button>}</div>
       </div>
@@ -193,12 +194,14 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
         <div><label className="label" htmlFor="seo-description">Описание для поиска</label><textarea id="seo-description" rows={3} maxLength={400} className="field" value={seoDescription} placeholder="По умолчанию — краткое описание" onChange={event => { setSeoDescription(event.target.value); markDirty() }}/></div>
       </div>
     </details>
-    <div className="paper mt-8 p-5 sm:p-8">
+    <div className="paper editor-action-bar mt-8 p-5 sm:p-6">
       <p className="mb-5 text-sm text-[#697383]">Для публикации нужны заголовок, рубрика и текст.</p>
       <div className="flex flex-wrap gap-3">
         <button type="button" disabled={busy} className="button-primary" onClick={() => perform('published')}>{busy ? 'Сохраняем…' : status === 'published' ? 'Сохранить изменения' : 'Опубликовать'}</button>
         {status === 'draft' && <button type="button" disabled={busy} className="button-outline" onClick={() => perform('draft')}>Сохранить черновик</button>}
         <button type="button" disabled={busy} className="button-outline" onClick={preview}>Предпросмотр</button>
+        {status === 'published' && <a className="button-outline" href={siteUrl(`/articles/${slug}`)} target="_blank" rel="noopener noreferrer">Открыть статью</a>}
+        <Link className="button-outline" href="/admin/articles">Вернуться к статьям</Link>
       </div>
       {id && <div className="mt-6 flex flex-wrap gap-6 border-t border-[#eee5de] pt-5 text-sm">{status === 'published' && <button type="button" disabled={busy} className="text-[#697383] underline" onClick={() => perform('draft')}>Снять с публикации</button>}<button type="button" disabled={busy} className="text-red-700 underline" onClick={removeArticle}>Удалить статью</button></div>}
     </div>

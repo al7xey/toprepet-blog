@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     id: body.id || crypto.randomUUID(), title: String(body.title || 'Без названия').trim().slice(0, 200), slug: String(body.slug || 'preview'),
     excerpt: String(body.excerpt || '').trim().slice(0, 400) || suggestedExcerpt(body.content_json), content_json: body.content_json,
     content_html: rendered.html, toc_json: rendered.headings, cover_image_url: body.cover_image_url || null, cover_image_alt: body.cover_image_alt || null,
-    status: 'draft', category_id: body.category_id || '', author_name: 'Редакция TopRepet', seo_title: null, seo_description: null,
+    status: body.status === 'published' ? 'published' : 'draft', category_id: body.category_id || '', author_name: 'Редакция TopRepet', seo_title: body.seo_title || null, seo_description: body.seo_description || null,
     published_at: body.published_at || null, modified_at: body.modified_at || null, created_at: now, updated_at: now, view_count: Number(body.view_count) || 0,
     reading_time_minutes: readingTimeMinutes(body.content_json),
   }
