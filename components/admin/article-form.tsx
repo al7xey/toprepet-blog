@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { transliterate } from 'transliteration'
-import type { ArticleDetail, Category } from '@/lib/types'
+import type { ArticleCardData, ArticleDetail, Category } from '@/lib/types'
 import { compressImage } from '@/lib/compress-image'
 import { siteUrl } from '@/lib/config'
 
@@ -43,7 +43,7 @@ function documentHasText(value: unknown): boolean {
   return Array.isArray(node.content) && node.content.some(documentHasText)
 }
 
-export function ArticleForm({ article, categories }: { article?: ArticleDetail; categories: Category[] }) {
+export function ArticleForm({ article, categories, publishedArticles = [], recommendationIds = [] }: { article?: ArticleDetail; categories: Category[]; publishedArticles?: ArticleCardData[]; recommendationIds?: string[] }) {
   const router = useRouter()
   const [id, setId] = useState(article?.id || '')
   const idRef = useRef(article?.id || '')
@@ -62,6 +62,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [dirty, setDirty] = useState(false)
+  const [recommendations, setRecommendations] = useState<string[]>([recommendationIds[0] || '', recommendationIds[1] || '', recommendationIds[2] || ''])
   const dirtyRef = useRef(false)
   const revisionRef = useRef(0)
   const restoringHistory = useRef(false)
@@ -93,7 +94,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
     window.addEventListener('beforeunload', onBeforeUnload); window.addEventListener('popstate', onPopState); window.addEventListener('blog:before-leave', onAppLeave); document.addEventListener('click', onClick, true)
     return () => { window.removeEventListener('beforeunload', onBeforeUnload); window.removeEventListener('popstate', onPopState); window.removeEventListener('blog:before-leave', onAppLeave); document.removeEventListener('click', onClick, true) }
   }, [])
-  const payload = (nextStatus: 'draft'|'published') => ({ title, slug, excerpt, category_id: categoryId, seo_title: seoTitle, seo_description: seoDescription, cover_image_url: coverUrl || null, cover_image_alt: coverAlt || null, content_json: json, status: nextStatus })
+  const payload = (nextStatus: 'draft'|'published') => ({ title, slug, excerpt, category_id: categoryId, seo_title: seoTitle, seo_description: seoDescription, cover_image_url: coverUrl || null, cover_image_alt: coverAlt || null, content_json: json, status: nextStatus, recommendation_ids: recommendations.filter(Boolean) })
   function validate(nextStatus: 'draft' | 'published') {
     if (!title.trim()) { document.getElementById('article-title')?.focus(); throw new Error('Введите заголовок статьи') }
     if (!categoryId) { document.getElementById('article-category')?.focus(); throw new Error('Выберите рубрику') }
@@ -185,6 +186,17 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
         <div className="flex flex-wrap items-center gap-4"><button type="button" className="button-outline" disabled={!coverFile || busy} onClick={uploadCover}>{coverUrl ? 'Заменить обложку' : 'Добавить обложку'}</button>{coverUrl && <button type="button" className="text-sm text-red-700 underline" disabled={busy} onClick={removeCover}>Удалить обложку</button>}</div>
       </div>
     </details>
+    <section className="paper mt-4 space-y-4 p-5 sm:p-8" aria-labelledby="article-recommendations-heading">
+      <div><h2 id="article-recommendations-heading" className="text-lg font-bold">Рекомендованные статьи</h2><p className="mt-1 text-sm text-[#697383]">До трёх материалов в указанном порядке. Пустые места заполнятся автоматически.</p></div>
+      {recommendations.map((value, index) => <div key={index}>
+        <label className="label" htmlFor={`recommendation-${index}`}>Статья {index + 1}</label>
+        <select id={`recommendation-${index}`} className="field" value={value} onChange={event => { const next = [...recommendations]; next[index] = event.target.value; setRecommendations(next); markDirty() }}>
+          <option value="">Автоматически</option>
+          {publishedArticles.filter(option => option.id !== article?.id && (!recommendations.includes(option.id) || option.id === value)).map(option => <option key={option.id} value={option.id}>{option.title}</option>)}
+        </select>
+      </div>)}
+      {publishedArticles.length < 3 && <p className="text-sm text-[#697383]">Сейчас опубликовано недостаточно других статей для трёх рекомендаций.</p>}
+    </section>
     <details className="paper mt-4 p-5 sm:p-8">
       <summary className="cursor-pointer text-lg font-bold">Адрес и настройки <span className="ml-2 text-sm font-normal text-[#697383]">необязательно</span></summary>
       <div className="mt-5 space-y-5">

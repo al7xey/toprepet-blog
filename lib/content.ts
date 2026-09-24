@@ -72,6 +72,21 @@ export function renderContent(value: unknown): { html: string; headings: Heading
       case 'blockquote': return `<blockquote>${inner()}</blockquote>`
       case 'horizontalRule': return '<hr>'
       case 'hardBreak': return '<br>'
+      case 'table': {
+        const rows = node.content || []
+        const headerRows = rows.length && (rows[0].content || []).every(cell => cell.type === 'tableHeader') ? rows.slice(0, 1) : []
+        const bodyRows = headerRows.length ? rows.slice(1) : rows
+        const renderRows = (items: Node[]) => items.map(row => render(row, depth + 1)).join('')
+        return `<div class="article-table-scroll"><table>${headerRows.length ? `<thead>${renderRows(headerRows)}</thead>` : ''}<tbody>${renderRows(bodyRows)}</tbody></table></div>`
+      }
+      case 'tableRow': return `<tr>${inner()}</tr>`
+      case 'tableHeader':
+      case 'tableCell': {
+        const tag = node.type === 'tableHeader' ? 'th' : 'td'
+        const colspan = Math.max(1, Math.min(20, Number(node.attrs?.colspan) || 1))
+        const rowspan = Math.max(1, Math.min(100, Number(node.attrs?.rowspan) || 1))
+        return `<${tag}${colspan > 1 ? ` colspan="${colspan}"` : ''}${rowspan > 1 ? ` rowspan="${rowspan}"` : ''}${tag === 'th' ? ' scope="col"' : ''}>${inner()}</${tag}>`
+      }
       case 'image': {
         const src = imageUrl(node.attrs?.src)
         const alt = String(node.attrs?.alt || '').trim()
@@ -93,12 +108,15 @@ export function renderContent(value: unknown): { html: string; headings: Heading
 
 export function sanitizeHtml(html: string) {
   const root = parseFragment(html) as unknown as HtmlNode
-  const allowedTags = new Set(['p','br','strong','em','s','a','h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','hr','figure','img','figcaption'])
+  const allowedTags = new Set(['p','br','strong','em','s','a','h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','hr','figure','img','figcaption','div','table','thead','tbody','tr','th','td'])
   const dropWithContent = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template'])
   const allowedAttributes: Record<string, Set<string>> = {
     a: new Set(['href', 'rel']),
     h1: new Set(['id']), h2: new Set(['id']), h3: new Set(['id']), h4: new Set(['id']), h5: new Set(['id']), h6: new Set(['id']),
     figure: new Set(['class']),
+    div: new Set(['class']),
+    th: new Set(['colspan', 'rowspan', 'scope']),
+    td: new Set(['colspan', 'rowspan']),
     img: new Set(['src', 'alt', 'width', 'height', 'loading', 'decoding', 'data-media-id']),
   }
 
@@ -125,6 +143,14 @@ export function sanitizeHtml(html: string) {
       }
       if (/^h[1-6]$/.test(tag)) child.attrs = (child.attrs || []).filter(attribute => attribute.name !== 'id' || /^[a-z0-9-]+$/.test(attribute.value))
       if (tag === 'figure') child.attrs = (child.attrs || []).filter(attribute => attribute.name !== 'class' || /^article-image article-image--(small|medium|large|content|wide) article-image--(left|center|right)$/.test(attribute.value))
+      if (tag === 'div') child.attrs = (child.attrs || []).filter(attribute => attribute.name === 'class' && attribute.value === 'article-table-scroll')
+      if (tag === 'th' || tag === 'td') {
+        child.attrs = (child.attrs || []).filter(attribute => {
+          if (attribute.name === 'scope') return tag === 'th' && ['col', 'row'].includes(attribute.value)
+          const value = Number(attribute.value)
+          return ['colspan', 'rowspan'].includes(attribute.name) && Number.isInteger(value) && value >= 1 && value <= (attribute.name === 'colspan' ? 20 : 100)
+        })
+      }
       if (tag === 'img') {
         const attributes = Object.fromEntries((child.attrs || []).map(attribute => [attribute.name, attribute.value]))
         const src = imageUrl(attributes.src)

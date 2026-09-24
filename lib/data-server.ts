@@ -69,15 +69,32 @@ export async function publishedArticle(slug: string): Promise<ArticleDetail | nu
   return data as ArticleDetail | null
 }
 
-export async function relatedArticleCards(currentId: string, categoryIds: string[], limit = 3): Promise<ArticleCardData[]> {
+export async function relatedArticleCards(currentId: string, categoryIds: string[], limit = 3, excludeIds: string[] = []): Promise<ArticleCardData[]> {
   'use cache'
   cacheLife('minutes')
   cacheTag('articles')
   const db = publicSupabase()
   if (!db || !categoryIds.length) return []
-  const { data, error } = await db.from('articles').select(CARD_FIELDS).eq('status', 'published').in('category_id', categoryIds).neq('id', currentId).order('published_at', { ascending: false }).limit(limit)
+  let query = db.from('articles').select(CARD_FIELDS).eq('status', 'published').in('category_id', categoryIds).neq('id', currentId)
+  if (excludeIds.length) query = query.not('id', 'in', `(${excludeIds.join(',')})`)
+  const { data, error } = await query.order('published_at', { ascending: false }).limit(limit)
   if (error) throw new Error(`Не удалось загрузить связанные статьи: ${error.message}`)
   return (data || []) as ArticleCardData[]
+}
+
+export async function manualRecommendationCards(articleId: string): Promise<ArticleCardData[]> {
+  'use cache'
+  cacheLife('minutes')
+  cacheTag('articles')
+  const db = publicSupabase()
+  if (!db) return []
+  const { data: rows, error } = await db.from('article_recommendations').select('recommended_article_id,sort_order').eq('article_id', articleId).order('sort_order')
+  if (error || !rows?.length) return []
+  const ids = rows.map(row => row.recommended_article_id)
+  const { data, error: articlesError } = await db.from('articles').select(CARD_FIELDS).eq('status', 'published').in('id', ids)
+  if (articlesError) throw new Error(`Не удалось загрузить рекомендации: ${articlesError.message}`)
+  const byId = new Map(((data || []) as ArticleCardData[]).map(article => [article.id, article]))
+  return ids.map(id => byId.get(id)).filter((article): article is ArticleCardData => Boolean(article))
 }
 
 export async function sitemapArticles(): Promise<ArticleSitemapData[]> {

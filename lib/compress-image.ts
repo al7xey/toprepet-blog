@@ -33,7 +33,7 @@ export async function compressImage(file: File, cover = false) {
     }
   }
   bitmap.close()
-  if (compressed.size > 500 * 1024) throw new Error('Не удалось достаточно сжать изображение. Попробуйте сохранить его как JPG или WebP.')
+  if (compressed.size > 450 * 1024) throw new Error('Не удалось достаточно сжать изображение. Попробуйте сохранить его как JPG или WebP.')
   const finalBitmap = await createImageBitmap(compressed)
   const result = { file: new File([compressed], 'image.webp', { type: 'image/webp' }), width: finalBitmap.width, height: finalBitmap.height }
   finalBitmap.close()

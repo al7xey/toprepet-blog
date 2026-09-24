@@ -3,6 +3,7 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TiptapImage from '@tiptap/extension-image'
+import { TableKit } from '@tiptap/extension-table'
 import {
   Bold,
   ImagePlus,
@@ -13,6 +14,7 @@ import {
   Minus,
   Quote,
   Strikethrough,
+  Table2,
   Trash2,
 } from 'lucide-react'
 import { useCallback, useRef, useState, type FormEvent, type ReactNode } from 'react'
@@ -41,7 +43,7 @@ type Props = {
 }
 
 export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props) {
-  const [panel, setPanel] = useState<'image' | 'link' | null>(null)
+  const [panel, setPanel] = useState<'image' | 'link' | 'table' | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [alt, setAlt] = useState('')
   const [caption, setCaption] = useState('')
@@ -60,6 +62,7 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3, 4, 5, 6] }, code: false, codeBlock: false }),
       ArticleImage.configure({ inline: false, allowBase64: false }),
+      TableKit.configure({ table: { resizable: false } }),
     ],
     content: initial,
     immediatelyRender: true,
@@ -239,6 +242,7 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
           {command('Цитата', () => editor.chain().focus().toggleBlockquote().run(), editor.isActive('blockquote'), false, <Quote size={18} />)}
           {command('Разделитель', () => editor.chain().focus().setHorizontalRule().run(), false, false, <Minus size={18} />)}
           {command('Добавить изображение', () => { setPanel(panel === 'image' ? null : 'image'); setError('') }, panel === 'image', false, <ImagePlus size={18} />)}
+          {command('Таблица', () => { setPanel(panel === 'table' ? null : 'table'); setError('') }, editor.isActive('table') || panel === 'table', false, <Table2 size={18} />)}
         </div>
         <div className="simple-editor-history">
           {command('Отменить', () => editor.chain().focus().undo().run(), false, !editor.can().undo())}
@@ -292,6 +296,26 @@ export function RichEditor({ initial, onChange, onUpload, onDeleteImage }: Props
             <button type="button" className="button-outline" disabled={busy} onClick={() => setPanel(null)}>Отмена</button>
           </div>
         </form>
+      )}
+
+      {panel === 'table' && (
+        <div className="simple-editor-inline-panel" aria-label="Настройки таблицы">
+          {!editor.isActive('table') ? (
+            <div className="simple-editor-inline-row">
+              <span className="label">Вставить таблицу</span>
+              {[2, 3, 4].map(size => <button key={size} type="button" className="button-outline" onClick={() => { editor.chain().focus().insertTable({ rows: size, cols: size, withHeaderRow: true }).run(); setPanel(null) }}>{size}×{size}</button>)}
+            </div>
+          ) : (
+            <div className="simple-editor-inline-row">
+              <button type="button" className="button-outline" onClick={() => editor.chain().focus().addRowAfter().run()}>Добавить строку</button>
+              <button type="button" className="button-outline" onClick={() => editor.chain().focus().deleteRow().run()}>Удалить строку</button>
+              <button type="button" className="button-outline" onClick={() => editor.chain().focus().addColumnAfter().run()}>Добавить столбец</button>
+              <button type="button" className="button-outline" onClick={() => editor.chain().focus().deleteColumn().run()}>Удалить столбец</button>
+              <button type="button" className="button-outline" onClick={() => editor.chain().focus().toggleHeaderRow().run()}>Строка заголовков</button>
+              <button type="button" className="button-outline" onClick={() => { editor.chain().focus().deleteTable().run(); setPanel(null) }}>Удалить таблицу</button>
+            </div>
+          )}
+        </div>
       )}
 
       {error && <p role="alert" className="simple-editor-error">{error}</p>}

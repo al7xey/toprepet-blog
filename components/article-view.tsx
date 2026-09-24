@@ -6,6 +6,7 @@ import { ArticleToc } from './article-toc'
 import { Breadcrumbs } from './breadcrumbs'
 import { displayDate, displayReadingTime, rubricHref } from '@/lib/data'
 import type { ArticleCardData, ArticleDetail, Category } from '@/lib/types'
+import { MAIN_URL } from '@/lib/config'
 
 export function ArticleView({ article, categories, related = [], preview = false }: { article: ArticleDetail; categories: Category[]; related?: ArticleCardData[]; preview?: boolean }) {
   const category = categories.find(item => item.id === article.category_id)
@@ -22,6 +23,7 @@ export function ArticleView({ article, categories, related = [], preview = false
       {article.cover_image_url && <figure className="article-cover"><Image src={article.cover_image_url} alt={article.cover_image_alt || article.title} width={1600} height={900} sizes="(max-width: 960px) 100vw, 900px" priority/></figure>}
       <div className="article-content-layout"><div className="min-w-0"><ArticleToc headings={article.toc_json} variant="mobile"/><section aria-label="Текст статьи" className="article-body" dangerouslySetInnerHTML={{ __html: article.content_html }}/></div><ArticleToc headings={article.toc_json} variant="desktop"/></div>
     </article>
+    {!preview && <aside className="article-cta" aria-labelledby="article-cta-title"><div><h2 id="article-cta-title">Нужна помощь с этой темой?</h2><p>Подберите преподавателя TopRepet под свою цель. Первое знакомство бесплатно.</p></div><a className="button-primary" href={`${MAIN_URL}free-intro/?utm_source=blog&utm_medium=referral&utm_campaign=article_cta&utm_content=${encodeURIComponent(article.slug)}`}>Подобрать репетитора</a></aside>}
     {related.length > 0 && <section className="section-block related-section"><h2 className="section-title">Читайте также</h2><div className="article-list">{related.map(item => <ArticleCard key={item.id} article={item} categories={categories}/>)}</div></section>}
     </div>
   </main>

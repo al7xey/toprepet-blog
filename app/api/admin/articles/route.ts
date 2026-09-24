@@ -5,6 +5,7 @@ import { articlePlainText, renderContent, suggestedExcerpt } from '@/lib/content
 import { readingTimeMinutes } from '@/lib/data'
 import { revalidateEditorialContent } from '@/lib/revalidate'
 import { isUuid } from '@/lib/validation'
+import { syncRecommendations } from '@/lib/recommendations-server'
 
 const slugPattern = /^[a-z0-9]+(-[a-z0-9]+)*$/
 export async function POST(request: NextRequest) {
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
   if (status === 'published' && !articlePlainText(document)) return errorJson('Добавьте текст статьи перед публикацией')
   const { data, error } = await db.from('articles').insert({ title, slug, excerpt, content_json: document, content_html: content.html, toc_json: content.headings, reading_time_minutes: readingTimeMinutes(document), category_id: categoryId, cover_image_url: null, cover_image_alt: null, author_name: 'Редакция TopRepet', seo_title: body.seo_title || null, seo_description: body.seo_description || null, status }).select('id').single()
   if (error) return errorJson(error.code === '23505' ? 'Такой адрес статьи уже занят или зарезервирован' : error.message)
+  try { await syncRecommendations(db, data.id, body.recommendation_ids) } catch (cause) { return errorJson(cause instanceof Error ? cause.message : 'Не удалось сохранить рекомендации') }
   revalidateEditorialContent([slug])
   return NextResponse.json({ id: data.id })
 }

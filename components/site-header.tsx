@@ -20,7 +20,7 @@ export function SiteHeader() {
         <Link href="/#fresh">Свежее</Link>
         <Link href="/#popular">Популярное</Link>
       </nav>
-      <a href={MAIN_URL} className="button-primary header-main-button">Основной сайт</a>
+      <a href={`${MAIN_URL}free-intro/?utm_source=blog&utm_medium=referral&utm_campaign=header`} className="button-primary header-main-button">Подобрать репетитора</a>
     </div>
   </header>
 }

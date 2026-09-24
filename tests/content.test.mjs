@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { renderContent, sanitizeHtml, headingsFromHtml, articlePlainText, suggestedExcerpt } from '../lib/content.ts'
 import { categoryBranchIds, categoryPath, displayDate, readingTimeMinutes, resolveCategory, relatedArticles, slugRedirectTarget } from '../lib/data.ts'
+import { mergeRecommendations, normalizeRecommendationIds } from '../lib/recommendations.ts'
 
 test('article HTML has stable H2/H3 anchors and safe text', () => {
   const { html, headings } = renderContent({ type: 'doc', content: [
@@ -23,6 +24,26 @@ test('raw scripts and unsafe links never survive', () => {
   assert.ok(!sanitizeHtml('<script>alert(1)</script><p onclick="x()">Text</p>').includes('<script'))
   const { html } = renderContent({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'link', marks: [{ type: 'link', attrs: { href: 'javascript:alert(1)' } }] }] }] })
   assert.ok(!html.includes('href='))
+})
+
+test('tables survive rendering while unsafe table attributes are removed', () => {
+  const { html } = renderContent({ type: 'doc', content: [{ type: 'table', content: [
+    { type: 'tableRow', content: [{ type: 'tableHeader', attrs: { colspan: 2 }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Заголовок' }] }] }] },
+    { type: 'tableRow', content: [{ type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'А' }] }] }, { type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Б' }] }] }] },
+  ] }] })
+  assert.match(html, /<div class="article-table-scroll"><table><thead>/)
+  assert.match(html, /<th colspan="2" scope="col">/)
+  const cleaned = sanitizeHtml('<table onclick="bad()"><tbody><tr><td colspan="2" style="color:red">Да</td></tr></tbody></table><script>bad()</script>')
+  assert.match(cleaned, /<td colspan="2">Да<\/td>/)
+  assert.ok(!cleaned.includes('onclick'))
+  assert.ok(!cleaned.includes('style='))
+  assert.ok(!cleaned.includes('<script'))
+})
+
+test('manual recommendations keep order and fallback never duplicates', () => {
+  const article = id => ({ id })
+  assert.deepEqual(normalizeRecommendationIds('current', ['a', 'a', 'current', 'b', 'c', 'd']), ['a', 'b', 'c'])
+  assert.deepEqual(mergeRecommendations('current', [article('b'), article('a')], [article('a'), article('current'), article('c'), article('d')]).map(item => item.id), ['b', 'a', 'c'])
 })
 
 test('an excerpt can be suggested from formatted article text', () => {

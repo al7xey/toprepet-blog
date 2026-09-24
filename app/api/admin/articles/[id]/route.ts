@@ -4,6 +4,7 @@ import { articlePlainText, imageMetadata, renderContent, suggestedExcerpt } from
 import { readingTimeMinutes } from '@/lib/data'
 import { revalidateEditorialContent } from '@/lib/revalidate'
 import { isUuid } from '@/lib/validation'
+import { syncRecommendations } from '@/lib/recommendations-server'
 
 const slugPattern = /^[a-z0-9]+(-[a-z0-9]+)*$/
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -64,6 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { error: coverAltError } = await db.from('media').update({ alt: String(body.cover_image_alt).trim() }).eq('article_id', id).eq('public_url', coverUrl)
     if (coverAltError) return errorJson(`Статья сохранена, но не удалось обновить описание обложки: ${coverAltError.message}`, 500)
   }
+  try { await syncRecommendations(db, id, body.recommendation_ids) } catch (cause) { return errorJson(cause instanceof Error ? cause.message : 'Не удалось сохранить рекомендации', 500) }
   revalidateEditorialContent([previous.slug, slug])
   return NextResponse.json({ id, slugChanged: previous.slug !== slug, oldSlug: previous.slug })
 }
