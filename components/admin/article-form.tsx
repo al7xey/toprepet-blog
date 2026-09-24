@@ -190,7 +190,7 @@ export function ArticleForm({ article, categories, publishedArticles = [], recom
           <option value="">Выберите рубрику</option>
           {categoryOptions.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
-        <button type="button" className="mt-3 text-sm font-bold text-[#d9551d]" onClick={() => setCategoryCreatorOpen(value => !value)}>{categoryCreatorOpen ? 'Отмена' : 'Создать новую рубрику'}</button>
+        <button type="button" className="category-create-toggle" aria-expanded={categoryCreatorOpen} onClick={() => setCategoryCreatorOpen(value => !value)}><span aria-hidden="true">{categoryCreatorOpen ? '×' : '+'}</span>{categoryCreatorOpen ? 'Закрыть' : 'Создать новую рубрику'}</button>
         {categoryCreatorOpen && <div className="category-quick-create mt-3">
           <div><label className="label" htmlFor="new-category-name">Название</label><input id="new-category-name" className="field" value={newCategoryName} maxLength={120} placeholder="Например, Геометрия" onChange={event => setNewCategoryName(event.target.value)}/></div>
           <div><label className="label" htmlFor="new-category-parent">Внутри рубрики</label><select id="new-category-parent" className="field" value={newCategoryParent} onChange={event => setNewCategoryParent(event.target.value)}><option value="">Верхний уровень</option>{categoryList.map(category => <option key={category.id} value={category.id}>{categoryLabel(category)}</option>)}</select></div>
