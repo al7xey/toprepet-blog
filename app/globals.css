@@ -116,9 +116,19 @@ button { cursor:pointer; }
 .label { display:block; margin-bottom:7px; font-size:.82rem; font-weight:800; }
 .eyebrow { color:var(--orange-dark); font-size:.73rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
 .eyebrow span { color:#b9a9a0; padding-inline:.55rem; }
-.editor-content-shell { min-height:420px; cursor:text; }
-.editor-content-shell .ProseMirror { min-height:420px; outline:none; }
-.editor-content-shell .ProseMirror p:first-child { min-height:1.85em; }
+.simple-editor { overflow:hidden; }
+.simple-editor-loading { min-height:180px; display:grid; place-items:center; color:var(--muted); }
+.simple-editor-toolbar { position:sticky; top:var(--header-height); z-index:10; display:flex; align-items:center; gap:4px; overflow-x:auto; padding:10px; border-bottom:1px solid var(--line); background:#fff; }
+.simple-editor-toolbar select { flex:none; min-height:40px; border:1px solid var(--line); border-radius:10px; background:#fff; padding:7px 10px; }
+.simple-editor-toolbar button { flex:none; min-height:40px; min-width:40px; border-radius:10px; padding:8px 10px; font-size:.75rem; font-weight:700; }
+.simple-editor-toolbar button:hover,.simple-editor-toolbar button[data-active="true"] { background:var(--surface); color:var(--orange-dark); }
+.simple-editor-toolbar button:disabled { opacity:.35; cursor:default; }
+.simple-editor-area { min-height:420px; cursor:text; background:#fff; }
+.simple-editor-content { min-height:420px; padding:24px 28px; outline:none; }
+.simple-editor-content p:first-child { min-height:1.85em; }
+.simple-editor-content:empty::before { content:'Начните писать статью…'; color:#9a918d; pointer-events:none; }
+.simple-editor-image-form,.simple-editor-image-settings { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; padding:20px; border-top:1px solid var(--line); background:var(--surface); }
+.simple-editor-image-form .button-primary,.simple-editor-image-settings .button-outline { align-self:end; width:max-content; }
 .editor-toolbar { position:sticky; top:72px; z-index:10; display:flex; gap:3px; overflow-x:auto; white-space:nowrap; padding:10px; background:#fff; border-bottom:1px solid var(--line); }
 .editor-toolbar select { flex:none; border:1px solid var(--line); border-radius:8px; background:#fff; padding:8px; font-size:.85rem; }
 .editor-toolbar button { flex:none; padding:8px; border-radius:8px; }
@@ -202,6 +212,7 @@ input[type="file"] { max-width:100%; font-size:.8rem; }
   .admin-page-heading { align-items:start; }
   .admin-page-heading .button-primary { width:100%; }
   .editor-panel { grid-template-columns:1fr; }
+  .simple-editor-image-form,.simple-editor-image-settings { grid-template-columns:1fr; }
   .feed-heading { align-items:flex-start; }
   .pagination { grid-template-columns:1fr 1fr; align-items:start; }
   .pagination > span { grid-column:1 / -1; grid-row:1; text-align:center; }

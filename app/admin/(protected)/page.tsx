@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { requireAdmin } from '@/lib/auth'
 import { displayDate, displayViews } from '@/lib/data'
 
+export const instant = false
 export default async function AdminHome() {
   const { supabase } = await requireAdmin()
   const [{ count: total }, { count: published }, { count: drafts }, { data: views }, { data: recent }] = await Promise.all([

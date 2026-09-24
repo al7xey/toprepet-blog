@@ -1,12 +1,17 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { transliterate } from 'transliteration'
 import type { ArticleDetail, Category } from '@/lib/types'
 import { compressImage } from '@/lib/compress-image'
-import { RichEditor } from './rich-editor'
+
+const RichEditor = dynamic(() => import('./rich-editor').then(module => module.RichEditor), {
+  ssr: false,
+  loading: () => <div className="paper simple-editor-loading">Подготавливаем редактор…</div>,
+})
 
 const emptyDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
 export function ArticleForm({ article, categories }: { article?: ArticleDetail; categories: Category[] }) {

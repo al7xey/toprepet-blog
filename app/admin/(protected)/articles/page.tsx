@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/auth'
 import { categories } from '@/lib/data-server'
 import type { ArticleAdminListData } from '@/lib/types'
 
+export const instant = false
 type Props = { searchParams: Promise<{ q?: string; status?: string; sort?: string }> }
 export default async function AdminArticles({ searchParams }: Props) {
   const query = await searchParams
