@@ -45,9 +45,9 @@ export function ArticleTable({ articles, categories }: { articles: ArticleAdminL
           <h2 className="break-words text-lg font-bold leading-snug">{article.title}</h2>
           <p className="mt-2 text-xs text-[#697383]">{article.status === 'published' ? 'Опубликовано ' + (displayDate(article.published_at) || '—') : 'Изменено ' + (displayDate(article.updated_at) || '—')} · {displayViews(article.view_count)}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2"><Link className="text-link" href={`/admin/articles/${article.id}`}>Редактировать →</Link>{article.status === 'published' && <Link className="text-xs text-[#697383] underline" href={`/articles/${article.slug}`} target="_blank">Открыть на сайте</Link>}</div>
+        <div className="flex shrink-0 flex-col items-end gap-2"><Link className="text-link" href={`/admin/articles/${article.id}`}>Редактировать</Link>{article.status === 'published' && <Link className="text-xs text-[#697383] underline" href={`/articles/${article.slug}`} target="_blank">Открыть на сайте</Link>}</div>
       </article>)}
-      {!rows.length && <div className="paper p-6"><p className="font-bold">Статей пока нет</p><p className="mt-1 text-sm text-[#697383]">Выберите другой фильтр или создайте первую статью.</p><Link href="/admin/articles/new" className="text-link mt-4">Новая статья →</Link></div>}
+      {!rows.length && <div className="paper p-6"><p className="font-bold">Статей пока нет</p><p className="mt-1 text-sm text-[#697383]">Выберите другой фильтр или создайте первую статью.</p><Link href="/admin/articles/new" className="text-link mt-4">Новая статья</Link></div>}
     </div>
   </>
 }

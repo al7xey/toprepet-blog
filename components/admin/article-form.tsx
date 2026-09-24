@@ -100,7 +100,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
   async function deleteImage(mediaId: string) { if (!pendingImageDeletes.current.includes(mediaId)) pendingImageDeletes.current.push(mediaId); markDirty() }
   async function removeArticle() { if (!id || !confirm('Удалить статью и все её изображения?')) return; const response = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' }); if (response.ok) { dirtyRef.current = false; router.push('/admin/articles'); router.refresh() } else setMessage('Не удалось удалить статью') }
   return <main className="mx-auto max-w-[860px]">
-    <Link href="/admin/articles" className="text-link mb-6 inline-block">← Все статьи</Link>
+    <Link href="/admin/articles" className="text-link mb-6 inline-block">Все статьи</Link>
     <div className="mb-8">
       <p className="eyebrow">{id ? 'Редактирование' : 'Новая статья'}</p>
       <h1 className="break-words">{id ? title || 'Статья' : 'Написать статью'}</h1>
