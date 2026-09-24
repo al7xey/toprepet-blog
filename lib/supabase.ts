@@ -6,7 +6,11 @@ import { supabaseConfig } from './config'
 export function publicSupabase() {
   const config = supabaseConfig()
   if (!config) return null
-  return createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+  const timeout = process.env.NODE_ENV === 'development' ? 2500 : 8000
+  return createClient(config.url, config.key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(timeout) }) },
+  })
 }
 
 export async function serverSupabase() {

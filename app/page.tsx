@@ -21,11 +21,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 export default async function Home({ searchParams }: Props) {
   const query = await searchParams
   const page = Math.max(1, Number(query.page) || 1)
+  const emptyFeed = { items: [], total: 0, page, pageSize: PAGE_SIZE, pageCount: 1 }
   const [rubrics, publicIds, fresh, popular] = await Promise.all([
-    categories(),
-    publishedCategoryIds(),
-    articleCards(page, PAGE_SIZE, 'fresh'),
-    articleCards(1, POPULAR_SIZE, 'popular'),
+    categories().catch(() => []),
+    publishedCategoryIds().catch(() => new Set<string>()),
+    articleCards(page, PAGE_SIZE, 'fresh').catch(() => emptyFeed),
+    articleCards(1, POPULAR_SIZE, 'popular').catch(() => ({ ...emptyFeed, page: 1, pageSize: POPULAR_SIZE })),
   ])
   const roots = rubrics.filter(category => !category.parent_id && publicIds.has(category.id))
   const jsonLd = [{ '@context': 'https://schema.org', '@type': 'Organization', name: 'TopRepet', url: MAIN_URL }, { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Блог TopRepet', url: siteUrl('/'), publisher: { '@type': 'Organization', name: 'TopRepet', url: MAIN_URL } }]
