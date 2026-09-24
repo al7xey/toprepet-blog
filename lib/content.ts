@@ -1,9 +1,9 @@
-import DOMPurify from 'dompurify'
-import { JSDOM } from 'jsdom'
+import { parseFragment, serialize } from 'parse5'
 import { transliterate } from 'transliteration'
 import type { HeadingData } from './types'
 
 type Node = { type?: string; text?: string; attrs?: Record<string, unknown>; marks?: { type: string; attrs?: Record<string, unknown> }[]; content?: Node[] }
+type HtmlNode = { nodeName: string; tagName?: string; value?: string; attrs?: { name: string; value: string }[]; childNodes?: HtmlNode[]; parentNode?: HtmlNode }
 export type Heading = HeadingData
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 
@@ -90,19 +90,77 @@ export function renderContent(value: unknown): { html: string; headings: Heading
 }
 
 export function sanitizeHtml(html: string) {
-  const window = new JSDOM('').window
-  const clean = DOMPurify(window as unknown as Parameters<typeof DOMPurify>[0]).sanitize(html, {
-    ALLOWED_TAGS: ['p','br','strong','em','s','a','h2','h3','ul','ol','li','blockquote','hr','figure','img','figcaption'],
-    ALLOWED_ATTR: ['href','rel','id','src','alt','width','height','loading','decoding','data-media-id'],
-  })
-  window.close()
-  return clean
+  const root = parseFragment(html) as unknown as HtmlNode
+  const allowedTags = new Set(['p','br','strong','em','s','a','h2','h3','ul','ol','li','blockquote','hr','figure','img','figcaption'])
+  const dropWithContent = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template'])
+  const allowedAttributes: Record<string, Set<string>> = {
+    a: new Set(['href', 'rel']),
+    h2: new Set(['id']),
+    h3: new Set(['id']),
+    img: new Set(['src', 'alt', 'width', 'height', 'loading', 'decoding', 'data-media-id']),
+  }
+
+  const clean = (parent: HtmlNode) => {
+    const children: HtmlNode[] = []
+    for (const child of parent.childNodes || []) {
+      const tag = child.tagName?.toLowerCase()
+      if (!tag) {
+        if (child.nodeName === '#text') children.push(child)
+        continue
+      }
+      if (dropWithContent.has(tag)) continue
+      clean(child)
+      if (!allowedTags.has(tag)) {
+        for (const nested of child.childNodes || []) { nested.parentNode = parent; children.push(nested) }
+        continue
+      }
+      const allowed = allowedAttributes[tag] || new Set<string>()
+      child.attrs = (child.attrs || []).filter(attribute => allowed.has(attribute.name))
+      if (tag === 'a') {
+        const href = child.attrs.find(attribute => attribute.name === 'href')
+        const safeHref = href ? safeUrl(href.value) : ''
+        child.attrs = safeHref ? [{ name: 'href', value: safeHref }, { name: 'rel', value: 'noopener noreferrer' }] : []
+      }
+      if (tag === 'h2' || tag === 'h3') child.attrs = (child.attrs || []).filter(attribute => attribute.name !== 'id' || /^[a-z0-9-]+$/.test(attribute.value))
+      if (tag === 'img') {
+        const attributes = Object.fromEntries((child.attrs || []).map(attribute => [attribute.name, attribute.value]))
+        const src = imageUrl(attributes.src)
+        const width = Number(attributes.width)
+        const height = Number(attributes.height)
+        const mediaId = String(attributes['data-media-id'] || '')
+        if (!src || !attributes.alt?.trim() || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 1600 || height > 1600 || !isUuid(mediaId)) continue
+        child.attrs = [
+          { name: 'src', value: src },
+          { name: 'alt', value: attributes.alt.trim() },
+          { name: 'width', value: String(width) },
+          { name: 'height', value: String(height) },
+          { name: 'loading', value: 'lazy' },
+          { name: 'decoding', value: 'async' },
+          { name: 'data-media-id', value: mediaId },
+        ]
+      }
+      child.parentNode = parent
+      children.push(child)
+    }
+    parent.childNodes = children
+  }
+
+  clean(root)
+  return serialize(root as never)
 }
 
 export function headingsFromHtml(html: string): Heading[] {
-  const window = new JSDOM(html).window
-  const headings = [...window.document.querySelectorAll('h2[id], h3[id]')].map(node => ({ id: node.id, level: node.tagName === 'H2' ? 2 as const : 3 as const, text: node.textContent || '' }))
-  window.close()
+  const root = parseFragment(html) as unknown as HtmlNode
+  const headings: Heading[] = []
+  const nodeText = (node: HtmlNode): string => node.nodeName === '#text' ? node.value || '' : (node.childNodes || []).map(nodeText).join('')
+  const visit = (node: HtmlNode) => {
+    if (node.tagName === 'h2' || node.tagName === 'h3') {
+      const id = node.attrs?.find(attribute => attribute.name === 'id')?.value
+      if (id) headings.push({ id, level: node.tagName === 'h2' ? 2 : 3, text: nodeText(node) })
+    }
+    for (const child of node.childNodes || []) visit(child)
+  }
+  visit(root)
   return headings
 }
 
