@@ -14,6 +14,34 @@ const RichEditor = dynamic(() => import('./rich-editor').then(module => module.R
 })
 
 const emptyDoc = { type: 'doc', content: [{ type: 'paragraph' }] }
+
+type ApiResult = {
+  error?: string
+  id?: string
+  url?: string
+  slugChanged?: boolean
+  oldSlug?: string
+  [key: string]: unknown
+}
+
+async function responseJson(response: Response, fallback: string): Promise<ApiResult> {
+  const text = await response.text()
+  let body: ApiResult = {}
+  if (text) {
+    try { body = JSON.parse(text) as ApiResult }
+    catch { if (!response.ok) throw new Error(fallback) }
+  }
+  if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : fallback)
+  return body
+}
+
+function documentHasText(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false
+  const node = value as { text?: unknown; content?: unknown[] }
+  if (typeof node.text === 'string' && node.text.trim()) return true
+  return Array.isArray(node.content) && node.content.some(documentHasText)
+}
+
 export function ArticleForm({ article, categories }: { article?: ArticleDetail; categories: Category[] }) {
   const router = useRouter()
   const [id, setId] = useState(article?.id || '')
@@ -34,6 +62,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
   const [message, setMessage] = useState('')
   const [dirty, setDirty] = useState(false)
   const dirtyRef = useRef(false)
+  const revisionRef = useRef(0)
   const restoringHistory = useRef(false)
   const pendingImageDeletes = useRef<string[]>([])
   const categoryById = new Map(categories.map(category => [category.id, category]))
@@ -51,7 +80,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
     return names.join(' / ')
   }
   const categoryOptions = categories.filter(category => !categories.some(child => child.parent_id === category.id)).map(category => ({ id: category.id, label: categoryLabel(category) })).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
-  const markDirty = () => { dirtyRef.current = true; setDirty(true) }
+  const markDirty = () => { revisionRef.current += 1; dirtyRef.current = true; setDirty(true) }
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => { if (dirtyRef.current) event.preventDefault() }
     const onClick = (event: MouseEvent) => { const anchor = (event.target as HTMLElement).closest('a'); if (anchor && dirtyRef.current && anchor.href !== location.href && !confirm('Есть несохранённые изменения. Покинуть страницу?')) event.preventDefault() }
@@ -64,46 +93,61 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
     return () => { window.removeEventListener('beforeunload', onBeforeUnload); window.removeEventListener('popstate', onPopState); window.removeEventListener('blog:before-leave', onAppLeave); document.removeEventListener('click', onClick, true) }
   }, [])
   const payload = (nextStatus: 'draft'|'published') => ({ title, slug, excerpt, category_id: categoryId, seo_title: seoTitle, seo_description: seoDescription, cover_image_url: coverUrl || null, cover_image_alt: coverAlt || null, content_json: json, status: nextStatus })
+  function validate(nextStatus: 'draft' | 'published') {
+    if (!title.trim()) { document.getElementById('article-title')?.focus(); throw new Error('Введите заголовок статьи') }
+    if (!categoryId) { document.getElementById('article-category')?.focus(); throw new Error('Выберите рубрику') }
+    if (!slug.trim()) throw new Error('Не удалось сформировать адрес статьи')
+    if (nextStatus === 'published' && !documentHasText(json)) { document.querySelector<HTMLElement>('[aria-label="Текст статьи"]')?.focus(); throw new Error('Добавьте текст статьи перед публикацией') }
+  }
   async function save(nextStatus: 'draft'|'published', quiet = false): Promise<string> {
-    if (!title.trim() || !slug.trim() || !categoryId) throw new Error('Укажите заголовок и рубрику')
+    validate(nextStatus)
+    const savedRevision = revisionRef.current
     const previousId = idRef.current
     const response = await fetch(previousId ? `/api/admin/articles/${previousId}` : '/api/admin/articles', { method: previousId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload(nextStatus)) })
-    const body = await response.json()
-    if (!response.ok) throw new Error(body.error || 'Не удалось сохранить')
+    const body = await responseJson(response, 'Не удалось сохранить статью')
+    if (typeof body.id !== 'string') throw new Error('Сервер не вернул номер статьи')
     for (const mediaId of pendingImageDeletes.current) {
       const removed = await fetch(`/api/admin/media/${mediaId}`, { method: 'DELETE' })
-      if (!removed.ok) throw new Error('Статья сохранена, но старое изображение не удалось удалить из Storage')
+      await responseJson(removed, 'Статья сохранена, но старое изображение не удалось удалить')
     }
     pendingImageDeletes.current = []
-    idRef.current = body.id; setId(body.id); setStatus(nextStatus); dirtyRef.current = false; setDirty(false)
-    if (!quiet) setMessage(body.slugChanged ? `Статья сохранена. Старый адрес /articles/${body.oldSlug} теперь перенаправляет на новый.` : nextStatus === 'published' ? 'Статья опубликована' : 'Черновик сохранён')
-    if (!quiet && !article) router.replace(`/admin/articles/${body.id}`)
-    if (!quiet) router.refresh()
+    idRef.current = body.id; setId(body.id); setStatus(nextStatus)
+    const unchangedDuringSave = revisionRef.current === savedRevision
+    if (unchangedDuringSave) { dirtyRef.current = false; setDirty(false) }
+    if (!quiet) setMessage(!unchangedDuringSave ? 'Сохранено, но после начала сохранения появились новые изменения.' : body.slugChanged ? `Статья сохранена. Старый адрес /articles/${body.oldSlug} теперь перенаправляет на новый.` : nextStatus === 'published' ? 'Статья опубликована' : 'Черновик сохранён')
+    if (!quiet && unchangedDuringSave) {
+      if (!article) router.replace(`/admin/articles/${body.id}`)
+      else router.refresh()
+    }
     return body.id
   }
   async function perform(nextStatus: 'draft'|'published') { setBusy(true); setMessage(''); try { await save(nextStatus) } catch (error) { setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
-  async function preview() { const windowForPreview = window.open('', '_blank'); if (!windowForPreview) { setMessage('Разрешите открытие новой вкладки для предпросмотра'); return } setBusy(true); setMessage(''); try { const response = await fetch('/api/admin/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload(status), id: id || null, published_at: article?.published_at, modified_at: article?.modified_at, view_count: article?.view_count }) }); const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Не удалось открыть предпросмотр'); windowForPreview.location.href = body.url } catch (error) { windowForPreview.close(); setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
+  async function preview() { const windowForPreview = window.open('', '_blank'); if (!windowForPreview) { setMessage('Разрешите открытие новой вкладки для предпросмотра'); return } setBusy(true); setMessage(''); try { const response = await fetch('/api/admin/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload(status), id: id || null, published_at: article?.published_at, modified_at: article?.modified_at, view_count: article?.view_count }) }); const body = await responseJson(response, 'Не удалось открыть предпросмотр'); if (typeof body.url !== 'string') throw new Error('Сервер не вернул адрес предпросмотра'); windowForPreview.location.href = body.url } catch (error) { windowForPreview.close(); setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
   async function ensureArticleId() {
     if (idRef.current) return idRef.current
-    if (!title.trim() || !slug.trim() || !categoryId) throw new Error('Для загрузки сначала укажите заголовок и тему')
-    const response = await fetch('/api/admin/articles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minimal: true, title, slug, category_id: categoryId }) })
-    const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Не удалось создать черновик')
-    idRef.current = body.id; setId(body.id); router.replace(`/admin/articles/${body.id}`); return body.id as string
+    validate('draft')
+    const response = await fetch('/api/admin/articles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload('draft')) })
+    const body = await responseJson(response, 'Не удалось подготовить черновик для изображения')
+    if (typeof body.id !== 'string') throw new Error('Сервер не вернул номер статьи')
+    idRef.current = body.id
+    setId(body.id)
+    history.replaceState(history.state, '', `/admin/articles/${body.id}`)
+    return body.id
   }
   async function upload(file: File, alt: string, caption: string, cover = false) {
     const articleId = await ensureArticleId()
     const image = await compressImage(file, cover)
     const form = new FormData(); form.set('file', image.file); form.set('article_id', articleId); form.set('alt', alt); form.set('caption', caption); form.set('cover', String(cover))
     const response = await fetch('/api/admin/media', { method: 'POST', body: form })
-    const body = await response.json()
-    if (!response.ok) throw new Error(body.error || 'Не удалось загрузить изображение')
+    const body = await responseJson(response, 'Не удалось загрузить изображение')
+    if (typeof body.id !== 'string' || typeof body.url !== 'string' || typeof body.width !== 'number' || typeof body.height !== 'number') throw new Error('Сервер вернул неполные данные изображения')
     markDirty()
     return { ...body, articleId } as { id: string; url: string; width: number; height: number; articleId: string }
   }
   async function uploadCover() { if (!coverFile) { setMessage('Выберите файл обложки'); return } if (!coverAlt.trim()) { setMessage('Опишите изображение для alt'); return } setBusy(true); setMessage(''); try { const media = await upload(coverFile, coverAlt.trim(), '', true); setCoverUrl(media.url); setCoverFile(null); markDirty(); setMessage('Обложка загружена. Сохраните статью, чтобы применить её.') } catch (error) { setMessage(error instanceof Error ? error.message : 'Ошибка') } finally { setBusy(false) } }
   async function removeCover() { setCoverUrl(''); markDirty(); setMessage('Обложка будет удалена после сохранения.') }
   async function deleteImage(mediaId: string) { if (!pendingImageDeletes.current.includes(mediaId)) pendingImageDeletes.current.push(mediaId); markDirty() }
-  async function removeArticle() { if (!id || !confirm('Удалить статью и все её изображения?')) return; const response = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' }); if (response.ok) { dirtyRef.current = false; router.push('/admin/articles'); router.refresh() } else setMessage('Не удалось удалить статью') }
+  async function removeArticle() { if (!id || !confirm('Удалить статью и все её изображения?')) return; const response = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' }); try { await responseJson(response, 'Не удалось удалить статью'); dirtyRef.current = false; router.push('/admin/articles'); router.refresh() } catch (error) { setMessage(error instanceof Error ? error.message : 'Не удалось удалить статью') } }
   return <main className="mx-auto max-w-[860px]">
     <Link href="/admin/articles" className="text-link mb-6 inline-block">Все статьи</Link>
     <div className="mb-8">
@@ -111,7 +155,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
       <h1 className="break-words">{id ? title || 'Статья' : 'Написать статью'}</h1>
       <p className="mt-2 text-sm text-[#697383]">{status === 'published' ? 'Опубликована' : 'Черновик'}{dirty ? ' · Есть несохранённые изменения' : ''}</p>
     </div>
-    {message && <p role="alert" className="mb-6 rounded-xl bg-[#fff0e5] p-4 text-sm">{message}</p>}
+    {message && <div role="status" className="admin-editor-notice"><span>{message}</span><button type="button" aria-label="Закрыть сообщение" onClick={() => setMessage('')}>Закрыть</button></div>}
     <section className="paper space-y-5 p-5 sm:p-8" aria-labelledby="article-main-heading">
       <h2 id="article-main-heading" className="text-xl font-bold">Основное</h2>
       <div>
@@ -129,7 +173,7 @@ export function ArticleForm({ article, categories }: { article?: ArticleDetail; 
     </section>
     <section className="mt-8" aria-labelledby="article-body-heading">
       <h2 id="article-body-heading" className="mb-3 text-xl font-bold">Текст статьи</h2>
-      <RichEditor initial={json} articleId={id} onChange={value => { setJson(value); markDirty() }} onUpload={(file, alt, caption) => upload(file, alt, caption)} onDeleteImage={deleteImage}/>
+      <RichEditor key={article?.id || 'new'} initial={json} articleId={id} onChange={value => { setJson(value); markDirty() }} onUpload={(file, alt, caption) => upload(file, alt, caption)} onDeleteImage={deleteImage}/>
     </section>
     <details className="paper mt-8 p-5 sm:p-8">
       <summary className="cursor-pointer text-lg font-bold">Обложка <span className="ml-2 text-sm font-normal text-[#697383]">необязательно</span></summary>

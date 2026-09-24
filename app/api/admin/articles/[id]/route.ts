@@ -25,33 +25,45 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const excerpt = excerptInput || suggestedExcerpt(body.content_json)
   if (status === 'published' && !articlePlainText(body.content_json)) return errorJson('Добавьте текст статьи перед публикацией')
   const db = auth.session!.supabase
-  const [{ data: previous }, { data: children }] = await Promise.all([
+  const [{ data: previous, error: previousError }, { data: children, error: categoryError }] = await Promise.all([
     db.from('articles').select('slug').eq('id', id).maybeSingle(),
     db.from('categories').select('id').eq('parent_id', categoryId).limit(1),
   ])
+  if (previousError) return errorJson(`Не удалось проверить статью: ${previousError.message}`, 500)
+  if (categoryError) return errorJson(`Не удалось проверить рубрику: ${categoryError.message}`, 500)
   if (!previous) return errorJson('Статья не найдена', 404)
   if (children?.length) return errorJson('Статью можно поместить только в конечную тему')
   const mediaIds = [...new Set(images.map(image => image.id))]
   const coverUrl = body.cover_image_url ? String(body.cover_image_url) : null
+  let coverId: string | null = null
   if (coverUrl) {
-    const { data: cover } = await db.from('media').select('id').eq('article_id', id).eq('public_url', coverUrl).maybeSingle()
+    const { data: cover, error: coverError } = await db.from('media').select('id').eq('article_id', id).eq('public_url', coverUrl).maybeSingle()
+    if (coverError) return errorJson(`Не удалось проверить обложку: ${coverError.message}`, 500)
     if (!cover) return errorJson('Обложка должна быть загружена через медиатеку статьи')
+    coverId = cover.id
   }
   if (mediaIds.length) {
-    const { data: owned } = await db.from('media').select('id').eq('article_id', id).in('id', mediaIds)
+    const { data: owned, error: mediaOwnershipError } = await db.from('media').select('id').eq('article_id', id).in('id', mediaIds)
+    if (mediaOwnershipError) return errorJson(`Не удалось проверить изображения: ${mediaOwnershipError.message}`, 500)
     if ((owned || []).length !== mediaIds.length) return errorJson('Одно из изображений не принадлежит статье')
   }
   const { error } = await db.from('articles').update({ title, slug, excerpt, content_json: body.content_json, content_html: content.html, toc_json: content.headings, reading_time_minutes: readingTimeMinutes(body.content_json), category_id: categoryId, cover_image_url: coverUrl, cover_image_alt: coverUrl ? String(body.cover_image_alt).trim() : null, seo_title: seoTitle || null, seo_description: seoDescription || null, status }).eq('id', id)
   if (error) return errorJson(error.code === '23505' || error.message.includes('reserved') ? 'Такой адрес статьи уже занят или зарезервирован' : error.message)
-  await db.from('media').update({ status: 'temporary' }).eq('article_id', id)
+  const { error: resetMediaError } = await db.from('media').update({ status: 'temporary' }).eq('article_id', id)
+  if (resetMediaError) return errorJson(`Статья сохранена, но не удалось обновить изображения: ${resetMediaError.message}`, 500)
   const attachedIds = [...mediaIds]
-  if (coverUrl) {
-    const { data: cover } = await db.from('media').select('id').eq('article_id', id).eq('public_url', coverUrl).maybeSingle()
-    if (cover) attachedIds.push(cover.id)
+  if (coverId) attachedIds.push(coverId)
+  if (attachedIds.length) {
+    const { error: attachMediaError } = await db.from('media').update({ status: 'attached' }).eq('article_id', id).in('id', [...new Set(attachedIds)])
+    if (attachMediaError) return errorJson(`Статья сохранена, но не удалось прикрепить изображения: ${attachMediaError.message}`, 500)
   }
-  if (attachedIds.length) await db.from('media').update({ status: 'attached' }).eq('article_id', id).in('id', [...new Set(attachedIds)])
-  for (const image of images) await db.from('media').update({ alt: image.alt, caption: image.caption }).eq('id', image.id).eq('article_id', id)
-  if (coverUrl) await db.from('media').update({ alt: String(body.cover_image_alt).trim() }).eq('article_id', id).eq('public_url', coverUrl)
+  const metadataUpdates = await Promise.all(images.map(image => db.from('media').update({ alt: image.alt, caption: image.caption }).eq('id', image.id).eq('article_id', id)))
+  const metadataError = metadataUpdates.find(result => result.error)?.error
+  if (metadataError) return errorJson(`Статья сохранена, но не удалось обновить описания изображений: ${metadataError.message}`, 500)
+  if (coverUrl) {
+    const { error: coverAltError } = await db.from('media').update({ alt: String(body.cover_image_alt).trim() }).eq('article_id', id).eq('public_url', coverUrl)
+    if (coverAltError) return errorJson(`Статья сохранена, но не удалось обновить описание обложки: ${coverAltError.message}`, 500)
+  }
   revalidateEditorialContent([previous.slug, slug])
   return NextResponse.json({ id, slugChanged: previous.slug !== slug, oldSlug: previous.slug })
 }
