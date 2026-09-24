@@ -116,7 +116,9 @@ button { cursor:pointer; }
 .label { display:block; margin-bottom:7px; font-size:.82rem; font-weight:800; }
 .eyebrow { color:var(--orange-dark); font-size:.73rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
 .eyebrow span { color:#b9a9a0; padding-inline:.55rem; }
-.ProseMirror { min-height:420px; outline:none; }
+.editor-content-shell { min-height:420px; cursor:text; }
+.editor-content-shell .ProseMirror { min-height:420px; outline:none; }
+.editor-content-shell .ProseMirror p:first-child { min-height:1.85em; }
 .editor-toolbar { position:sticky; top:72px; z-index:10; display:flex; gap:3px; overflow-x:auto; white-space:nowrap; padding:10px; background:#fff; border-bottom:1px solid var(--line); }
 .editor-toolbar select { flex:none; border:1px solid var(--line); border-radius:8px; background:#fff; padding:8px; font-size:.85rem; }
 .editor-toolbar button { flex:none; padding:8px; border-radius:8px; }

@@ -9,5 +9,9 @@ try {
   }
 } catch { /* Invalid optional env keeps local empty-state builds working. */ }
 
-const nextConfig: NextConfig = { cacheComponents: true, images: { remotePatterns } }
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  allowedDevOrigins: ['127.0.0.1', 'localhost', '10.0.0.1'],
+  images: { remotePatterns },
+}
 export default nextConfig
