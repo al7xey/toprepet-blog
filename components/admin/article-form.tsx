@@ -22,6 +22,7 @@ type ApiResult = {
   url?: string
   slugChanged?: boolean
   oldSlug?: string
+  category?: Category
   [key: string]: unknown
 }
 
@@ -52,6 +53,11 @@ export function ArticleForm({ article, categories, publishedArticles = [], recom
   const [slugTouched, setSlugTouched] = useState(Boolean(article))
   const [excerpt, setExcerpt] = useState(article?.excerpt || '')
   const [categoryId, setCategoryId] = useState(article?.category_id || '')
+  const [categoryList, setCategoryList] = useState(categories)
+  const [categoryCreatorOpen, setCategoryCreatorOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryParent, setNewCategoryParent] = useState('')
+  const [categoryBusy, setCategoryBusy] = useState(false)
   const [seoTitle, setSeoTitle] = useState(article?.seo_title || '')
   const [seoDescription, setSeoDescription] = useState(article?.seo_description || '')
   const [coverUrl, setCoverUrl] = useState(article?.cover_image_url || '')
@@ -67,7 +73,7 @@ export function ArticleForm({ article, categories, publishedArticles = [], recom
   const revisionRef = useRef(0)
   const restoringHistory = useRef(false)
   const pendingImageDeletes = useRef<string[]>([])
-  const categoryById = new Map(categories.map(category => [category.id, category]))
+  const categoryById = new Map(categoryList.map(category => [category.id, category]))
   const categoryLabel = (category: Category) => {
     const names = [category.name]
     const visited = new Set([category.id])
@@ -81,7 +87,7 @@ export function ArticleForm({ article, categories, publishedArticles = [], recom
     }
     return names.join(' / ')
   }
-  const categoryOptions = categories.filter(category => !categories.some(child => child.parent_id === category.id)).map(category => ({ id: category.id, label: categoryLabel(category) })).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  const categoryOptions = categoryList.filter(category => !categoryList.some(child => child.parent_id === category.id)).map(category => ({ id: category.id, label: categoryLabel(category) })).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   const markDirty = () => { revisionRef.current += 1; dirtyRef.current = true; setDirty(true) }
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => { if (dirtyRef.current) event.preventDefault() }
@@ -150,6 +156,20 @@ export function ArticleForm({ article, categories, publishedArticles = [], recom
   async function removeCover() { setCoverUrl(''); markDirty(); setMessage('Обложка будет удалена после сохранения.') }
   async function deleteImage(mediaId: string) { if (!pendingImageDeletes.current.includes(mediaId)) pendingImageDeletes.current.push(mediaId); markDirty() }
   async function removeArticle() { if (!id || !confirm('Удалить статью и все её изображения?')) return; const response = await fetch(`/api/admin/articles/${id}`, { method: 'DELETE' }); try { await responseJson(response, 'Не удалось удалить статью'); dirtyRef.current = false; router.push('/admin/articles'); router.refresh() } catch (error) { setMessage(error instanceof Error ? error.message : 'Не удалось удалить статью') } }
+  async function createCategory() {
+    if (!newCategoryName.trim()) { setMessage('Введите название рубрики'); return }
+    setCategoryBusy(true); setMessage('')
+    try {
+      const response = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newCategoryName.trim(), parent_id: newCategoryParent || null }) })
+      const body = await responseJson(response, 'Не удалось создать рубрику')
+      if (!body.category) throw new Error('Сервер не вернул созданную рубрику')
+      setCategoryList(current => [...current, body.category!])
+      setCategoryId(body.category.id)
+      setNewCategoryName(''); setNewCategoryParent(''); setCategoryCreatorOpen(false); markDirty()
+      setMessage(`Рубрика «${body.category.name}» создана и выбрана`)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Не удалось создать рубрику') }
+    finally { setCategoryBusy(false) }
+  }
   return <main className="mx-auto max-w-[860px]">
     <Link href="/admin/articles" className="text-link mb-6 inline-block">Все статьи</Link>
     <div className="mb-8">
@@ -170,7 +190,12 @@ export function ArticleForm({ article, categories, publishedArticles = [], recom
           <option value="">Выберите рубрику</option>
           {categoryOptions.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}
         </select>
-        {!categories.length && <p className="mt-2 text-sm text-[#697383]">Сначала <Link className="text-link" href="/admin/categories">создайте рубрику</Link>.</p>}
+        <button type="button" className="mt-3 text-sm font-bold text-[#d9551d]" onClick={() => setCategoryCreatorOpen(value => !value)}>{categoryCreatorOpen ? 'Отмена' : 'Создать новую рубрику'}</button>
+        {categoryCreatorOpen && <div className="category-quick-create mt-3">
+          <div><label className="label" htmlFor="new-category-name">Название</label><input id="new-category-name" className="field" value={newCategoryName} maxLength={120} placeholder="Например, Геометрия" onChange={event => setNewCategoryName(event.target.value)}/></div>
+          <div><label className="label" htmlFor="new-category-parent">Внутри рубрики</label><select id="new-category-parent" className="field" value={newCategoryParent} onChange={event => setNewCategoryParent(event.target.value)}><option value="">Верхний уровень</option>{categoryList.map(category => <option key={category.id} value={category.id}>{categoryLabel(category)}</option>)}</select></div>
+          <button type="button" className="button-primary" disabled={categoryBusy} onClick={createCategory}>{categoryBusy ? 'Создаём…' : 'Создать и выбрать'}</button>
+        </div>}
       </div>
     </section>
     <section className="mt-8" aria-labelledby="article-body-heading">

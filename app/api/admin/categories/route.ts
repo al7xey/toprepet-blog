@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
     while (cursor) { depth++; cursor = all?.find(item => item.id === cursor)?.parent_id || null }
     if (depth > 3) return errorJson('В админке доступно не более трёх уровней рубрик')
   }
-  const { data, error } = await db.from('categories').insert({ name, slug, parent_id: body.parent_id || null, description: String(body.description || '').trim() || null, sort_order: Number(body.sort_order) || 0 }).select('id').single()
+  const { data, error } = await db.from('categories').insert({ name, slug, parent_id: body.parent_id || null, description: String(body.description || '').trim() || null, sort_order: Number(body.sort_order) || 0 }).select('id,name,slug,parent_id,description,sort_order,created_at,updated_at').single()
   if (error) return errorJson(error.code === '23505' ? 'Такой адрес уже есть на этом уровне' : error.message.includes('cannot have children') ? 'Нельзя добавить подрубрику: в этой теме уже есть статьи' : error.message)
   revalidateEditorialContent()
-  return NextResponse.json({ id: data.id })
+  return NextResponse.json({ id: data.id, category: data })
 }
