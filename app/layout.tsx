@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   openGraph: { type: 'website', url: siteUrl('/'), siteName: 'Блог TopRepet', title: 'Блог TopRepet — знания для вашей цели', description: 'Полезные материалы об учёбе и экзаменах.', images: ['/opengraph-image'] },
   twitter: { card: 'summary_large_image' },
   icons: { icon: '/logo.svg' },
+  verification: { yandex: 'd8f99ae8fa51608b' },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
